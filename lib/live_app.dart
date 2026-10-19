@@ -195,7 +195,7 @@ class _LiveHomePageState extends State<LiveHomePage> {
     if (!snap.hasData) return const Center(child: CircularProgressIndicator());
     final rows = (snap.data! as List).cast<Map<String,dynamic>>();
     return ListView(padding: const EdgeInsets.all(22), children: [
-      const Text('Şube siparişleri', style: TextStyle(color: _navy, fontSize: 20, fontWeight: FontWeight.w900)),
+      Row(children: [const Expanded(child: Text('Şube siparişleri', style: TextStyle(color: _navy, fontSize: 20, fontWeight: FontWeight.w900))), if (profile?['role'] == 'sube') FilledButton.icon(onPressed: createOrder, icon: const Icon(Icons.add), label: const Text('Sipariş oluştur'))]),
       const SizedBox(height: 14), if (rows.isEmpty) note('Sipariş yok', 'Şube siparişleri burada anlık olarak görünür.'),
       ...rows.map((o) { final branch = (o['branches'] as Map<String,dynamic>?)?['name'] ?? 'Şube'; final lines = (o['order_lines'] as List? ?? []).cast<Map<String,dynamic>>(); final status = o['status'].toString(); final products = lines.map((l) => ((l['products'] as Map<String,dynamic>?)?['name'] ?? 'Ürün').toString() + ': ' + l['requested_quantity'].toString()).join(' · '); return Card(color: Colors.white, elevation: 0, child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(branch.toString() + ' · SV-' + o['order_number'].toString(), style: const TextStyle(fontWeight: FontWeight.w900, color: _navy)),
@@ -204,6 +204,37 @@ class _LiveHomePageState extends State<LiveHomePage> {
       ]))); }),
     ]);
   });
+
+
+  Future<void> createOrder() async {
+    final branchName = profile?['branch_name']?.toString();
+    if (branchName == null || branchName.isEmpty) { toast('Hesabına şube atanmamış. Yönetici profilini güncellemeli.', error: true); return; }
+    try {
+      final branch = await db.from('branches').select('id').eq('name', branchName).maybeSingle();
+      if (branch == null) throw Exception('Şube kaydı bulunamadı.');
+      final products = (await db.from('products').select('id,name,unit').eq('active', true).order('name')).cast<Map<String,dynamic>>();
+      if (products.isEmpty) throw Exception('Sipariş verilecek ürün bulunamadı.');
+      String productId = products.first['id'].toString();
+      final quantity = TextEditingController(text: '1');
+      final noteText = TextEditingController();
+      final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, modal) => AlertDialog(
+        title: const Text('Yeni şube siparişi'),
+        content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButtonFormField<String>(value: productId, isExpanded: true, decoration: const InputDecoration(labelText: 'Ürün'), items: products.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString() + ' (' + p['unit'].toString() + ')'))).toList(), onChanged: (v) { if (v != null) modal(() => productId = v); }),
+          TextField(controller: quantity, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Miktar')),
+          TextField(controller: noteText, decoration: const InputDecoration(labelText: 'Not (isteğe bağlı)')),
+        ])),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Siparişi gönder'))],
+      )));
+      if (ok == true) {
+        final amount = double.tryParse(quantity.text.replaceAll(',', '.')) ?? 0;
+        if (amount <= 0) throw Exception('Miktar sıfırdan büyük olmalı.');
+        await db.rpc('create_branch_order', params: {'p_branch_id': branch['id'], 'p_lines': [{'product_id': productId, 'quantity': amount}], 'p_note': noteText.text});
+        refresh(); toast('Sipariş depoya iletildi.');
+      }
+      quantity.dispose(); noteText.dispose();
+    } catch (e) { toast('Sipariş oluşturulamadı: ' + e.toString(), error: true); }
+  }
 
   Future<void> dispatchOrder(Map<String,dynamic> order, List<Map<String,dynamic>> lines) async {
     try {
