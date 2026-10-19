@@ -160,6 +160,5 @@ class _HomeShellState extends State<HomeShell> {
       ListTile(leading: Icon(Icons.shopping_cart_outlined, color: Color(0xFFC64C55)), title: Text('Baharat karışımı'), subtitle: Text('3 paket mevcut · Minimum 8 paket')),
     ])),
   ]));
-  Widget _historyPage() => _orderPage();
   Widget _pill(String text, Color bg, Color fg) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6), decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)), child: Text(text, style: TextStyle(color: fg, fontSize: 9, fontWeight: FontWeight.w800)));
 }
