@@ -142,7 +142,10 @@ begin
  if p_quantity <= 0 or p_expiry_date is null or p_expiry_date < current_date then raise exception 'Miktar pozitif olmalı ve SKT bugün veya ileri bir tarih olmalı'; end if;
  if not exists(select 1 from public.products where id=p_product_id and active=true) then raise exception 'Ürün bulunamadı veya pasif'; end if;
  insert into public.stock_batches(product_id, location_type, branch_id, expiry_date, quantity)
- values(p_product_id,'depo',null,p_expiry_date,p_quantity) returning id into v_batch_id;
+ values(p_product_id,'depo',null,p_expiry_date,p_quantity)
+ on conflict (product_id, location_type, (coalesce(branch_id, '00000000-0000-0000-0000-000000000000'::uuid)), expiry_date)
+ do update set quantity=public.stock_batches.quantity + excluded.quantity, updated_at=now()
+ returning id into v_batch_id;
  insert into public.stock_movements(product_id,stock_batch_id,movement_type,quantity_delta,reference_type,reference_id,performed_by,note)
  values(p_product_id,v_batch_id,'giris',p_quantity,'stock_batch',v_batch_id,auth.uid(),coalesce(p_note,''));
  return v_batch_id;
