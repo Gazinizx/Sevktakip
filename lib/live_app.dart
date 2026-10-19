@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 const _navy = Color(0xFF12233F);
 const _mint = Color(0xFF43D6B0);
@@ -37,7 +38,7 @@ class _SignInPageState extends State<SignInPage> {
     body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(22), child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 440),
       child: Card(color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), child: Padding(padding: const EdgeInsets.all(28), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(height: 64, alignment: Alignment.center, decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(18)), child: const Icon(Icons.local_shipping_rounded, color: _mint, size: 38)),
+        ClipRRect(borderRadius: BorderRadius.circular(18), child: SvgPicture.asset('assets/sevktakip-logo.svg', width: 72, height: 72)),
         const SizedBox(height: 18), const Text('SEVKTAKİP', style: TextStyle(color: _navy, fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: 1.4)),
         const SizedBox(height: 8), Text(signup ? 'Yeni hesap oluştur' : 'Depo ve şube giriş ekranı', style: const TextStyle(color: _muted)),
         if (signup) ...[const SizedBox(height: 14), TextField(controller: name, decoration: const InputDecoration(labelText: 'Ad soyad', border: OutlineInputBorder()))],
@@ -103,7 +104,7 @@ class _LiveHomePageState extends State<LiveHomePage> {
   }
 
   Widget navigation() => Container(color: const Color(0xFF0B172B), child: SafeArea(child: Column(children: [
-    const Padding(padding: EdgeInsets.all(22), child: Row(children: [Icon(Icons.local_shipping_rounded, color: _mint, size: 34), SizedBox(width: 10), Text('SEVKTAKİP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.2))])),
+    Padding(padding: const EdgeInsets.fromLTRB(22, 22, 16, 30), child: Row(children: [ClipRRect(borderRadius: BorderRadius.circular(10), child: SvgPicture.asset('assets/sevktakip-logo.svg', width: 42, height: 42)), const SizedBox(width: 10), const Text('SEVKTAKİP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.2))])),
     ...List.generate(titles.length, (i) => ListTile(selected: tab == i, selectedTileColor: const Color(0xFF223955), leading: Icon([Icons.grid_view, Icons.inventory_2, Icons.receipt_long, Icons.shopping_cart][i], color: tab == i ? _mint : Colors.white70), title: Text(titles[i], style: TextStyle(color: tab == i ? Colors.white : Colors.white70, fontSize: 13)), onTap: () { setState(() => tab = i); if (MediaQuery.sizeOf(context).width < 850) Navigator.maybePop(context); })),
     const Spacer(), const Padding(padding: EdgeInsets.all(16), child: Text('CANLI VERİ', style: TextStyle(color: Colors.white54, fontSize: 10))),
   ])));
