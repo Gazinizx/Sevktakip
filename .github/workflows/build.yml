@@ -12,6 +12,7 @@ jobs:
         with:
           channel: stable
           cache: true
+      - run: flutter create . --platforms=android,ios,windows
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
@@ -24,6 +25,7 @@ jobs:
         with:
           channel: stable
           cache: true
+      - run: flutter create . --platforms=android,ios,windows
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
@@ -36,6 +38,7 @@ jobs:
         with:
           channel: stable
           cache: true
+      - run: flutter create . --platforms=android,ios,windows
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
