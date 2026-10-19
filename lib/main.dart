@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'live_app.dart';
+
+bool supabaseConfigured = false;
 
 const navy = Color(0xFF12233F);
 const deep = Color(0xFF0B172B);
@@ -14,6 +17,7 @@ Future<void> main() async {
   const key = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
   if (url.isNotEmpty && key.isNotEmpty) {
     await Supabase.initialize(url: url, publishableKey: key);
+    supabaseConfigured = true;
   }
   runApp(const SevkTakipApp());
 }
@@ -25,7 +29,7 @@ class SevkTakipApp extends StatelessWidget {
     title: 'SevkTakip', debugShowCheckedModeBanner: false,
     theme: ThemeData(useMaterial3: true, scaffoldBackgroundColor: canvas,
       colorScheme: ColorScheme.fromSeed(seedColor: navy, primary: navy, secondary: mint)),
-    home: const HomeShell(),
+    home: const AuthGate(),
   );
 }
 
