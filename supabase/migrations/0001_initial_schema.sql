@@ -139,7 +139,7 @@ returns uuid language plpgsql security definer set search_path = public
 as $$ declare v_batch_id uuid;
 begin
  if auth.uid() is null or not public.is_depot_or_manager() then raise exception 'Depo yetkisi gerekli'; end if;
- if p_quantity <= 0 or p_expiry_date is null then raise exception 'Miktar ve SKT geçerli olmalı'; end if;
+ if p_quantity <= 0 or p_expiry_date is null or p_expiry_date < current_date then raise exception 'Miktar pozitif olmalı ve SKT bugün veya ileri bir tarih olmalı'; end if;
  if not exists(select 1 from public.products where id=p_product_id and active=true) then raise exception 'Ürün bulunamadı veya pasif'; end if;
  insert into public.stock_batches(product_id, location_type, branch_id, expiry_date, quantity)
  values(p_product_id,'depo',null,p_expiry_date,p_quantity) returning id into v_batch_id;
