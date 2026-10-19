@@ -49,7 +49,7 @@ class _SignInPageState extends State<SignInPage> {
         TextButton(onPressed: () => setState(() { signup = !signup; error = null; }), child: Text(signup ? 'Giriş ekranına dön' : 'Yeni hesap oluştur')),
         const Text('Yeni hesaplar varsayılan şube rolündedir. Depo/yönetici yetkisi yönetici tarafından atanır.', style: TextStyle(color: _muted, fontSize: 11)),
       ])),
-    ))));
+    )))));
 
 class LiveHomePage extends StatefulWidget {
   const LiveHomePage({super.key});
