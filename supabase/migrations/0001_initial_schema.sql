@@ -63,6 +63,7 @@ create table if not exists public.purchase_requests (
  created_by uuid references auth.users(id), created_at timestamptz not null default now(), note text not null default ''
 );
 create index if not exists stock_batches_product_expiry_idx on public.stock_batches(product_id, expiry_date);
+create unique index if not exists stock_batches_branch_expiry_unique on public.stock_batches(product_id, location_type, (coalesce(branch_id, '00000000-0000-0000-0000-000000000000'::uuid)), expiry_date);
 create index if not exists orders_status_created_idx on public.orders(status, created_at desc);
 create index if not exists stock_movements_created_idx on public.stock_movements(created_at desc);
 
@@ -209,9 +210,8 @@ begin
  for v_line in select dl.quantity, ol.product_id, sb.expiry_date from public.dispatch_lines dl join public.order_lines ol on ol.id=dl.order_line_id join public.stock_batches sb on sb.id=dl.stock_batch_id where dl.dispatch_id=p_dispatch_id loop
    insert into public.stock_batches(product_id,location_type,branch_id,expiry_date,quantity)
    values(v_line.product_id,'sube',v_order.branch_id,v_line.expiry_date,v_line.quantity)
-   on conflict do nothing;
-   update public.stock_batches set quantity=quantity+v_line.quantity,updated_at=now()
-   where product_id=v_line.product_id and location_type='sube' and branch_id=v_order.branch_id and expiry_date=v_line.expiry_date;
+   on conflict (product_id, location_type, (coalesce(branch_id, '00000000-0000-0000-0000-000000000000'::uuid)), expiry_date)
+   do update set quantity=public.stock_batches.quantity + excluded.quantity, updated_at=now();
    insert into public.stock_movements(product_id,movement_type,quantity_delta,reference_type,reference_id,performed_by,note)
    values(v_line.product_id,'teslim_alma',v_line.quantity,'dispatch',p_dispatch_id,auth.uid(),coalesce(p_note,''));
  end loop;
