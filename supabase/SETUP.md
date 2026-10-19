@@ -15,7 +15,7 @@ Flutter uygulamasını şu derleme değişkenleriyle başlat:
 flutter run --dart-define=SUPABASE_URL=https://PROJECT_REF.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
 ```
 
-Yayınlanabilir/anon anahtarı uygulama içinde kullanılabilir; **service_role anahtarını asla uygulamaya veya GitHub'a koyma**.
+Yayınlanabilir/anon anahtarı uygulama içinde kullanılabilir; **service_role anahtarını asla uygulamaya veya GitHub'a koyma**. GitHub deposunda Settings > Secrets and variables > Actions altında `SUPABASE_URL` ve `SUPABASE_PUBLISHABLE_KEY` adlı repository secrets oluştur. Workflow bu iki değeri Android/Windows/iOS derlemelerine geçirir.
 
 ## 3. Şube ve ürünleri tanımla
 İlk depo kullanıcısı kaydolduktan sonra Supabase SQL Editor'da gerçek şube adlarını ekle:
