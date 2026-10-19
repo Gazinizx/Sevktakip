@@ -5,21 +5,6 @@ const _navy = Color(0xFF12233F);
 const _mint = Color(0xFF43D6B0);
 const _muted = Color(0xFF7B879B);
 
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
-  @override
-  Widget build(BuildContext context) {
-    if (!supabaseConfigured) return const HomeShell();
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        if (Supabase.instance.client.auth.currentSession == null) return const SignInPage();
-        return const LiveHomePage();
-      },
-    );
-  }
-}
-
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
   @override
