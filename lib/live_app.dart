@@ -194,31 +194,43 @@ class _LiveHomePageState extends State<LiveHomePage> {
   Future<void> createOrder() async {
     final branchName = profile?['branch_name']?.toString();
     if (branchName == null || branchName.isEmpty) { toast('Hesabına şube atanmamış. Yönetici profilini güncellemeli.', error: true); return; }
+    final quantities = <TextEditingController>[];
     try {
       final branch = await db.from('branches').select('id').eq('name', branchName).maybeSingle();
       if (branch == null) throw Exception('Şube kaydı bulunamadı.');
       final products = (await db.from('products').select('id,name,unit').eq('active', true).order('name')).cast<Map<String,dynamic>>();
       if (products.isEmpty) throw Exception('Sipariş verilecek ürün bulunamadı.');
-      String productId = products.first['id'].toString();
-      final quantity = TextEditingController(text: '1');
+      final selectedIds = <String>[products.first['id'].toString()];
+      quantities.add(TextEditingController(text: '1'));
       final noteText = TextEditingController();
       final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, modal) => AlertDialog(
         title: const Text('Yeni şube siparişi'),
-        content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
-          DropdownButtonFormField<String>(value: productId, isExpanded: true, decoration: const InputDecoration(labelText: 'Ürün'), items: products.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString() + ' (' + p['unit'].toString() + ')'))).toList(), onChanged: (v) { if (v != null) modal(() => productId = v); }),
-          TextField(controller: quantity, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Miktar')),
+        content: SizedBox(width: 460, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ...List.generate(selectedIds.length, (i) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [
+            Expanded(flex: 3, child: DropdownButtonFormField<String>(value: selectedIds[i], isExpanded: true, decoration: InputDecoration(labelText: 'Ürün ' + (i + 1).toString()), items: products.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString() + ' (' + p['unit'].toString() + ')', overflow: TextOverflow.ellipsis))).toList(), onChanged: (v) { if (v != null) modal(() => selectedIds[i] = v); })),
+            const SizedBox(width: 8),
+            Expanded(flex: 1, child: TextField(controller: quantities[i], keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Miktar'))),
+            if (selectedIds.length > 1) IconButton(onPressed: () => modal(() { selectedIds.removeAt(i); quantities.removeAt(i).dispose(); }), icon: const Icon(Icons.remove_circle_outline)),
+          ]))),
+          Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => modal(() { selectedIds.add(products.first['id'].toString()); quantities.add(TextEditingController(text: '1')); }), icon: const Icon(Icons.add), label: const Text('Ürün satırı ekle'))),
           TextField(controller: noteText, decoration: const InputDecoration(labelText: 'Not (isteğe bağlı)')),
-        ])),
+        ]))),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Siparişi gönder'))],
       )));
       if (ok == true) {
-        final amount = double.tryParse(quantity.text.replaceAll(',', '.')) ?? 0;
-        if (amount <= 0) throw Exception('Miktar sıfırdan büyük olmalı.');
-        await db.rpc('create_branch_order', params: {'p_branch_id': branch['id'], 'p_lines': [{'product_id': productId, 'quantity': amount}], 'p_note': noteText.text});
+        final lines = <Map<String,dynamic>>[];
+        for (var i = 0; i < selectedIds.length; i++) {
+          final amount = double.tryParse(quantities[i].text.replaceAll(',', '.')) ?? 0;
+          if (amount <= 0) throw Exception('Her ürün için miktar sıfırdan büyük olmalı.');
+          lines.add({'product_id': selectedIds[i], 'quantity': amount});
+        }
+        if (lines.map((x) => x['product_id']).toSet().length != lines.length) throw Exception('Aynı ürünü tek satırda birleştir.');
+        await db.rpc('create_branch_order', params: {'p_branch_id': branch['id'], 'p_lines': lines, 'p_note': noteText.text});
         refresh(); toast('Sipariş depoya iletildi.');
       }
-      quantity.dispose(); noteText.dispose();
+      noteText.dispose();
     } catch (e) { toast('Sipariş oluşturulamadı: ' + e.toString(), error: true); }
+    finally { for (final q in quantities) { q.dispose(); } }
   }
 
   Future<void> dispatchOrder(Map<String,dynamic> order, List<Map<String,dynamic>> lines) async {
