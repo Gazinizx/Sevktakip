@@ -256,7 +256,7 @@ class _LiveHomePageState extends State<LiveHomePage> {
     catch (e) { toast('Teslim alınamadı: ' + e.toString(), error: true); }
   }
 
-  Widget purchasePage() => FutureBuilder<List<dynamic>>(key: ValueKey('purchase$revision'), future: Future.wait([
+  Widget purchasePage() { if (!depot) return note('Bu bölüm depo yetkililerine açık', 'Satın alma ve minimum stok uyarılarını yalnızca depo/yönetici hesabı görüntüleyebilir.'); return FutureBuilder<List<dynamic>>(key: ValueKey('purchase$revision'), future: Future.wait([
     db.from('products').select('id,name,unit,minimum_quantity').eq('active', true),
     db.from('stock_batches').select('product_id,quantity').eq('location_type','depo').gt('quantity',0),
   ]), builder: (context, snap) {
@@ -268,7 +268,7 @@ class _LiveHomePageState extends State<LiveHomePage> {
       const SizedBox(height: 12), ...products.map((p) { final total = batches.where((b) => b['product_id'] == p['id']).fold<double>(0, (s,b) => s + (b['quantity'] as num).toDouble()); final min = (p['minimum_quantity'] as num).toDouble(); if (total >= min) return const SizedBox.shrink(); return Card(color: Colors.white, elevation: 0, child: ListTile(leading: const Icon(Icons.shopping_cart_outlined, color: Colors.red), title: Text(p['name'].toString()), subtitle: Text('Mevcut: ' + total.toString() + ' ' + p['unit'].toString() + ' · Minimum: ' + min.toString()), trailing: Text('Al: ' + (min-total).toString(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800)))); }),
       if (depot) Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(onPressed: addProduct, icon: const Icon(Icons.add), label: const Text('Ürün tanımla'))),
     ]);
-  });
+  }); }
 
   Widget metric(String label, String value, IconData icon) => Container(width: 210, padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE7ECF3))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, color: _mint, size: 26), const SizedBox(height: 12), Text(value, style: const TextStyle(color: _navy, fontSize: 26, fontWeight: FontWeight.w900)), Text(label, style: const TextStyle(color: _muted, fontSize: 11))]));
   Widget note(String title, String body) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE7ECF3))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: _navy, fontWeight: FontWeight.w800)), const SizedBox(height: 7), Text(body, style: const TextStyle(color: _muted, fontSize: 12, height: 1.5))]));
