@@ -203,7 +203,7 @@ end $$;
 
 create or replace function public.accept_dispatch(p_dispatch_id uuid, p_note text default '')
 returns void language plpgsql security definer set search_path = public
-as $$ declare v_order public.orders%rowtype; v_line record; v_profile_branch text;
+as $ declare v_order public.orders%rowtype; v_line record; v_profile_branch text; v_branch_batch_id uuid;
 begin
  if auth.uid() is null then raise exception 'Oturum gerekli'; end if;
  select o.* into v_order from public.dispatches d join public.orders o on o.id=d.order_id where d.id=p_dispatch_id for update of d,o;
@@ -214,9 +214,10 @@ begin
    insert into public.stock_batches(product_id,location_type,branch_id,expiry_date,quantity)
    values(v_line.product_id,'sube',v_order.branch_id,v_line.expiry_date,v_line.quantity)
    on conflict (product_id, location_type, (coalesce(branch_id, '00000000-0000-0000-0000-000000000000'::uuid)), expiry_date)
-   do update set quantity=public.stock_batches.quantity + excluded.quantity, updated_at=now();
-   insert into public.stock_movements(product_id,movement_type,quantity_delta,reference_type,reference_id,performed_by,note)
-   values(v_line.product_id,'teslim_alma',v_line.quantity,'dispatch',p_dispatch_id,auth.uid(),coalesce(p_note,''));
+   do update set quantity=public.stock_batches.quantity + excluded.quantity, updated_at=now()
+   returning id into v_branch_batch_id;
+   insert into public.stock_movements(product_id,stock_batch_id,movement_type,quantity_delta,reference_type,reference_id,performed_by,note)
+   values(v_line.product_id,v_branch_batch_id,'teslim_alma',v_line.quantity,'dispatch',p_dispatch_id,auth.uid(),coalesce(p_note,''));
  end loop;
  update public.dispatches set received_at=now(),received_by=auth.uid(),note=case when p_note='' then note else p_note end where id=p_dispatch_id;
  update public.orders set status='teslim_alindi',updated_at=now() where id=v_order.id;
