@@ -29,7 +29,7 @@ class SevkTakipApp extends StatelessWidget {
     title: 'SevkTakip', debugShowCheckedModeBanner: false,
     theme: ThemeData(useMaterial3: true, scaffoldBackgroundColor: canvas,
       colorScheme: ColorScheme.fromSeed(seedColor: navy, primary: navy, secondary: mint)),
-    home: const AuthGate(),
+    home: supabaseConfigured ? const _AppGate() : const HomeShell(),
   );
 }
 
@@ -165,4 +165,16 @@ class _HomeShellState extends State<HomeShell> {
     ])),
   ]));
   Widget _pill(String text, Color bg, Color fg) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6), decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)), child: Text(text, style: TextStyle(color: fg, fontSize: 9, fontWeight: FontWeight.w800)));
+}
+
+class _AppGate extends StatelessWidget {
+  const _AppGate();
+  @override
+  Widget build(BuildContext context) => StreamBuilder<AuthState>(
+    stream: Supabase.instance.client.auth.onAuthStateChange,
+    builder: (context, snapshot) {
+      if (Supabase.instance.client.auth.currentSession == null) return const SignInPage();
+      return const LiveHomePage();
+    },
+  );
 }
