@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const navy = Color(0xFF12233F);
@@ -81,7 +82,7 @@ class _HomeShellState extends State<HomeShell> {
 
   Widget _sidebar() => Container(color: deep, child: SafeArea(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Padding(padding: const EdgeInsets.fromLTRB(22, 24, 18, 30), child: Row(children: [
-      Container(width: 44, height: 44, decoration: BoxDecoration(color: mint, borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.local_shipping_rounded, color: deep, size: 25)),
+      ClipRRect(borderRadius: BorderRadius.circular(13), child: SvgPicture.asset('assets/sevktakip-logo.svg', width: 44, height: 44)),
       const SizedBox(width: 12),
       const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('SEVKTAKİP', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
