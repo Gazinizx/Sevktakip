@@ -51,6 +51,7 @@ class _SignInPageState extends State<SignInPage> {
       ])),
     )))));
 
+}
 class LiveHomePage extends StatefulWidget {
   const LiveHomePage({super.key});
   @override
