@@ -527,7 +527,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
                               title: Text(item.name),
                               subtitle: Text('Birim: ${item.unit}'),
                               trailing: const Icon(Icons.add_shopping_cart),
-                              onTap: _createOrder,
+                              onTap: () => _createOrder(initialProductId: item.id),
                             ),
                           ))
                       .toList(),
@@ -781,14 +781,15 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
     _message('Stok güncellendi.');
   }
 
-  Future<void> _createOrder() async {
+  Future<void> _createOrder({String? initialProductId}) async {
     if (_stock.isEmpty) {
       _message('Önce depocu ürün eklemeli.', error: true);
       return;
     }
     final quantities = <String, TextEditingController>{
       for (final item in _stock)
-        item.id: TextEditingController(text: '0'),
+        item.id: TextEditingController(
+          text: item.id == initialProductId ? '1' : '0'),
     };
     final note = TextEditingController();
     final formKey = GlobalKey<FormState>();
