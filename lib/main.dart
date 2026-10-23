@@ -18,7 +18,7 @@ class SevkTakipApp extends StatelessWidget {
   const SevkTakipApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'SevkTakip', debugShowCheckedModeBanner: false,
+    title: 'Doyuyo Sevkiyat', debugShowCheckedModeBanner: false,
     theme: ThemeData(useMaterial3: true, scaffoldBackgroundColor: paper,
       colorScheme: ColorScheme.fromSeed(seedColor: ink),
       appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: ink, elevation: 0),
@@ -37,7 +37,7 @@ class RoleSelectScreen extends StatelessWidget {
         children: [
           const Icon(Icons.warehouse_rounded, size: 72, color: green),
           const SizedBox(height: 14),
-          const Text('SEVKTAKİP', textAlign: TextAlign.center,
+          const Text('DOYUYO SEVKİYAT', textAlign: TextAlign.center,
             style: TextStyle(color: ink, fontSize: 28, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
           const Text('Ortak depo ve mağaza stok yönetimi', textAlign: TextAlign.center),
@@ -77,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       products = List<Map<String,dynamic>>.from(await db.from('products').select().order('name'));
       orders = List<Map<String,dynamic>>.from(await db.from('orders').select('*,order_lines(*,products(name,unit))').order('created_at', ascending: false));
-    } catch (e) { if (mounted) message('Veriler alınamadı: ' + e.toString(), true); }
+    } catch (e) { if (mounted) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) message('Veriler alınamadı: ' + e.toString(), true); }); } }
     if (mounted) setState(() => loading = false);
   }
   void message(String text, [bool error = false]) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: error ? Colors.red : ink));
