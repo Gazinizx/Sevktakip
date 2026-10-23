@@ -23,11 +23,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p assets
-          if [ ! -s assets/doyuyo-app-icon.png ]; then
-            echo "::error::The supplied Doyuyo logo must be committed at assets/doyuyo-app-icon.png before building. Refusing to substitute a favicon."
-            exit 1
-          fi
+          set -euo pipefail
+          mkdir -p assets/icons
+          ZIP_PATH="Doyuyo_Sevkiyat_Android_iOS_Icons.zip"
+          test -s "$ZIP_PATH" || { echo "::error::Doyuyo icon ZIP is missing from repository root."; exit 1; }
+          unzip -o "$ZIP_PATH" -d assets/icons
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          from PIL import Image
+          root = Path("assets/icons")
+          candidates = []
+          for path in root.rglob("*"):
+              if path.is_file() and path.suffix.lower() == ".png":
+                  try:
+                      with Image.open(path) as im:
+                          w, h = im.size
+                          if w == h and w >= 512:
+                              candidates.append((w, path))
+                  except Exception:
+                      pass
+          if not candidates:
+              raise SystemExit("No square PNG icon of at least 512x512 found in the uploaded ZIP.")
+          candidates.sort(key=lambda item: (item[0], str(item[1])), reverse=True)
+          source = candidates[0][1]
+          Path("assets/doyuyo-app-icon.png").parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(source, "assets/doyuyo-app-icon.png")
+          print(f"Using {source} ({candidates[0][0]}x{candidates[0][0]}) as Android/iOS source icon")
+          PY
+          test -s assets/doyuyo-app-icon.png
       - run: flutter pub get
       - name: Set Android app display name
         run: |
@@ -55,11 +79,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p assets
-          if [ ! -s assets/doyuyo-app-icon.png ]; then
-            echo "::error::The supplied Doyuyo logo must be committed at assets/doyuyo-app-icon.png before building. Refusing to substitute a favicon."
-            exit 1
-          fi
+          set -euo pipefail
+          mkdir -p assets/icons
+          ZIP_PATH="Doyuyo_Sevkiyat_Android_iOS_Icons.zip"
+          test -s "$ZIP_PATH" || { echo "::error::Doyuyo icon ZIP is missing from repository root."; exit 1; }
+          unzip -o "$ZIP_PATH" -d assets/icons
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          from PIL import Image
+          root = Path("assets/icons")
+          candidates = []
+          for path in root.rglob("*"):
+              if path.is_file() and path.suffix.lower() == ".png":
+                  try:
+                      with Image.open(path) as im:
+                          w, h = im.size
+                          if w == h and w >= 512:
+                              candidates.append((w, path))
+                  except Exception:
+                      pass
+          if not candidates:
+              raise SystemExit("No square PNG icon of at least 512x512 found in the uploaded ZIP.")
+          candidates.sort(key=lambda item: (item[0], str(item[1])), reverse=True)
+          source = candidates[0][1]
+          Path("assets/doyuyo-app-icon.png").parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(source, "assets/doyuyo-app-icon.png")
+          print(f"Using {source} ({candidates[0][0]}x{candidates[0][0]}) as Android/iOS source icon")
+          PY
+          test -s assets/doyuyo-app-icon.png
       - run: flutter pub get
       - name: Set app display name
         run: |
