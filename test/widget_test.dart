@@ -16,14 +16,31 @@ void main() {
     expect(find.text('Depocu'), findsOneWidget);
   });
 
-  testWidgets('depot area opens without login', (tester) async {
+  testWidgets('depot stock page opens and offers product creation',
+      (tester) async {
     await tester.pumpWidget(const SevkTakipApp());
     await tester.pumpAndSettle();
+
     await tester.tap(find.text('Depocu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Genel Bakış'), findsOneWidget);
+
+    await tester.tap(find.text('Stok'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Depo Stoku'), findsOneWidget);
+    expect(find.text('Ürün ekle'), findsOneWidget);
+    expect(find.text('Henüz ürün eklenmedi'), findsOneWidget);
+  });
+
+  testWidgets('store area opens without login', (tester) async {
+    await tester.pumpWidget(const SevkTakipApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Mağaza'));
     await tester.pumpAndSettle();
 
     expect(find.text('Genel Bakış'), findsOneWidget);
-    expect(find.text('Depo Stoku'), findsOneWidget);
-    expect(find.text('Ürün ekle'), findsOneWidget);
+    expect(find.text('Mağaza alanı'), findsOneWidget);
   });
 }
