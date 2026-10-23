@@ -127,7 +127,22 @@ class LocalInventory {
   Future<List<StockItem>> loadStock() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_stockKey);
-    if (raw == null) return [];
+    if (raw == null) {
+      return [
+        StockItem(id: 'demo_tavuk', name: 'Tavuk fileto', unit: 'koli', quantity: 8, minimum: 3),
+        StockItem(id: 'demo_patates', name: 'Patates', unit: 'koli', quantity: 12, minimum: 4),
+        StockItem(id: 'demo_burger_ekmegi', name: 'Burger ekmeği', unit: 'koli', quantity: 6, minimum: 2),
+        StockItem(id: 'demo_tenders', name: 'Tenders kaplama karışımı', unit: 'koli', quantity: 5, minimum: 2),
+        StockItem(id: 'demo_sos', name: 'Gurme sos', unit: 'koli', quantity: 4, minimum: 2),
+        StockItem(id: 'demo_ketcap', name: 'Ketçap', unit: 'koli', quantity: 7, minimum: 2),
+        StockItem(id: 'demo_mayonez', name: 'Mayonez', unit: 'koli', quantity: 7, minimum: 2),
+        StockItem(id: 'demo_icecek', name: 'Kutu içecek', unit: 'koli', quantity: 10, minimum: 3),
+        StockItem(id: 'demo_coleslaw', name: 'Coleslaw salata', unit: 'koli', quantity: 3, minimum: 2),
+        StockItem(id: 'demo_sogan', name: 'Soğan halkası', unit: 'koli', quantity: 4, minimum: 2),
+        StockItem(id: 'demo_mozzarella', name: 'Mozzarella sticks', unit: 'koli', quantity: 2, minimum: 2),
+        StockItem(id: 'demo_limonata', name: 'Limonata', unit: 'koli', quantity: 9, minimum: 3),
+      ];
+    }
     try {
       return (jsonDecode(raw) as List<dynamic>)
           .map((item) =>
@@ -428,7 +443,8 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
             _metric(_isDepot ? 'Bekleyen talep' : 'Siparişlerim',
                 _isDepot ? pending.toString() : _orders.length.toString(),
                 Icons.receipt_long_outlined),
-            _metric('Kritik stok', low.toString(), Icons.warning_amber_rounded),
+            _metric('Kritik stok', low.toString(), Icons.warning_amber_rounded,
+                onTap: _showCriticalStock),
             _metric('Onaylanan', approved.toString(), Icons.check_circle_outline),
           ],
         ),
@@ -443,11 +459,15 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
     );
   }
 
-  Widget _metric(String label, String value, IconData icon) => Card(
+  Widget _metric(String label, String value, IconData icon,
+          {VoidCallback? onTap}) => Card(
         color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
           padding: const EdgeInsets.all(15),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -483,9 +503,10 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
                               color: _ink,
                               fontSize: 20,
                               fontWeight: FontWeight.w900)),
-                      Text(item.unit,
-                          style: const TextStyle(
-                              color: Colors.black54, fontSize: 11)),
+                      if (item.unit != 'adet')
+                        Text(item.unit,
+                            style: const TextStyle(
+                                color: Colors.black54, fontSize: 11)),
                     ],
                   ),
                   onTap: () => _addStock(item),
@@ -525,7 +546,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
                             color: Colors.white,
                             child: ListTile(
                               title: Text(item.name),
-                              subtitle: Text('Birim: ${item.unit}'),
+                              subtitle: Text(item.unit == 'adet' ? 'Stok: ${item.quantity}' : 'Stok: ${item.quantity} ${item.unit}'),
                               trailing: const Icon(Icons.add_shopping_cart),
                               onTap: () => _createOrder(initialProductId: item.id),
                             ),
@@ -572,10 +593,6 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
       );
 
   Widget _orderCard(StockOrder order, {bool actions = false}) {
-    final details = order.lines.map((line) {
-      final product = _findProduct(line.productId);
-      return '${product?.name ?? 'Silinmiş ürün'} × ${line.quantity}';
-    }).join(' · ');
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.only(bottom: 10),
@@ -595,7 +612,23 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(details),
+            ...order.lines.map((line) {
+              final product = _findProduct(line.productId);
+              final unit = product?.unit ?? 'adet';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 5, right: 8),
+                      child: Icon(Icons.circle, size: 6, color: _green),
+                    ),
+                    Expanded(child: Text('${product?.name ?? 'Silinmiş ürün'}  ×  ${line.quantity}${unit == 'adet' ? '' : ' $unit'}')),
+                  ],
+                ),
+              );
+            }),
             if (order.note.isNotEmpty) ...[
               const SizedBox(height: 5),
               Text('Not: ${order.note}',
@@ -669,7 +702,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
 
   Future<void> _addProduct() async {
     final name = TextEditingController();
-    final unit = TextEditingController(text: 'adet');
+    String unit = 'adet';
     final quantity = TextEditingController(text: '0');
     final minimum = TextEditingController(text: '5');
     final formKey = GlobalKey<FormState>();
@@ -684,7 +717,35 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _textField(name, 'Ürün adı'),
-                _textField(unit, 'Birim (adet, koli, kg)'),
+                StatefulBuilder(
+                  builder: (context, setDialogState) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: InkWell(
+                      onTap: () async {
+                        final selected = await showDialog<String>(
+                          context: context,
+                          builder: (context) => SimpleDialog(
+                            title: const Text('Ürün birimini seç'),
+                            children: ['adet', 'koli'].map((option) => SimpleDialogOption(
+                              onPressed: () => Navigator.pop(context, option),
+                              child: Row(children: [
+                                Icon(unit == option ? Icons.radio_button_checked : Icons.radio_button_off,
+                                    color: unit == option ? _green : Colors.black45),
+                                const SizedBox(width: 10),
+                                Text(option == 'adet' ? 'Adet' : 'Koli'),
+                              ]),
+                            )).toList(),
+                          ),
+                        );
+                        if (selected != null) setDialogState(() => unit = selected);
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(labelText: 'Birim', suffixIcon: Icon(Icons.arrow_drop_down)),
+                        child: Text(unit == 'adet' ? 'Adet' : 'Koli'),
+                      ),
+                    ),
+                  ),
+                ),
                 _textField(quantity, 'Başlangıç stoku', numeric: true),
                 _textField(minimum, 'Minimum stok', numeric: true),
               ],
@@ -714,7 +775,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
           _stock.add(StockItem(
             id: DateTime.now().microsecondsSinceEpoch.toString(),
             name: cleanName,
-            unit: unit.text.trim().isEmpty ? 'adet' : unit.text.trim(),
+            unit: unit,
             quantity: int.parse(quantity.text.trim()),
             minimum: int.parse(minimum.text.trim()),
           ));
@@ -724,7 +785,6 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
       }
     }
     name.dispose();
-    unit.dispose();
     quantity.dispose();
     minimum.dispose();
   }
