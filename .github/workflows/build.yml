@@ -132,10 +132,24 @@ jobs:
           security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' "$RUNNER_TEMP/profile.plist")
+          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
+          PROFILE_TEAM_ID=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/profile.plist")
+          EXPECTED_APP_ID="com.gazinizx.doyuyosevkiyat"
+          EXPECTED_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
+          test -n "$EXPECTED_TEAM_ID" || { echo "::error::Missing APPLE_TEAM_ID repository secret"; exit 1; }
+          if [ "$PROFILE_APP_ID" != "$EXPECTED_TEAM_ID.$EXPECTED_APP_ID" ]; then
+            echo "::error::Provisioning profile App ID mismatch. Expected $EXPECTED_TEAM_ID.$EXPECTED_APP_ID but found $PROFILE_APP_ID"
+            exit 1
+          fi
+          if [ "$PROFILE_TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+            echo "::error::Provisioning profile Team ID mismatch. Expected $EXPECTED_TEAM_ID but found $PROFILE_TEAM_ID"
+            exit 1
+          fi
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "Validated profile: $PROFILE_NAME ($PROFILE_UUID), app=$PROFILE_APP_ID, team=$PROFILE_TEAM_ID"
       - name: Create App Store export options
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
@@ -144,6 +158,7 @@ jobs:
           <plist version="1.0"><dict>
             <key>method</key><string>app-store-connect</string>
             <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
             <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
             <key>provisioningProfiles</key><dict>
               <key>com.gazinizx.doyuyosevkiyat</key><string>$PROFILE_NAME</string>
@@ -152,8 +167,28 @@ jobs:
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           PLIST
-      - name: Build signed IPA
-        run: flutter build ipa --release --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+      - name: Create unsigned iOS archive
+        run: |
+          set -euo pipefail
+          flutter build ipa --release --no-codesign
+          test -d build/ios/archive/Runner.xcarchive || { echo "::error::Flutter did not produce build/ios/archive/Runner.xcarchive"; find build/ios -maxdepth 3 -print; exit 1; }
+      - name: Export and sign IPA with Apple Distribution
+        run: |
+          set -euo pipefail
+          mkdir -p build/ios/ipa
+          xcodebuild -exportArchive \
+            -archivePath "build/ios/archive/Runner.xcarchive" \
+            -exportPath "build/ios/ipa" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates
+          shopt -s nullglob
+          IPAS=(build/ios/ipa/*.ipa)
+          if [ "${#IPAS[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one exported IPA, found ${#IPAS[@]}"
+            find build/ios/ipa -maxdepth 2 -type f -print
+            exit 1
+          fi
+          echo "Exported signed IPA: ${IPAS[0]}"
       - uses: actions/upload-artifact@v4
         with:
           name: doyuyo-sevkiyat-signed-ipa
