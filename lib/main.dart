@@ -23,62 +23,44 @@ class SevkTakipApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: ink),
       appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: ink, elevation: 0),
       inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder())),
-    home: const SessionGate());
+    home: const RoleSelectScreen());
 }
 
-class SessionGate extends StatelessWidget {
-  const SessionGate({super.key});
+class RoleSelectScreen extends StatelessWidget {
+  const RoleSelectScreen({super.key});
   @override
-  Widget build(BuildContext context) => StreamBuilder<AuthState>(
-    stream: db.auth.onAuthStateChange,
-    builder: (context, snapshot) => db.auth.currentSession == null ? const AuthScreen() : const HomeScreen());
-}
-
-class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
-  @override
-  State<AuthScreen> createState() => _AuthScreenState();
-}
-class _AuthScreenState extends State<AuthScreen> {
-  final email = TextEditingController();
-  final password = TextEditingController();
-  final name = TextEditingController();
-  bool signup = false, busy = false;
-  String? error;
-  @override
-  void dispose() { email.dispose(); password.dispose(); name.dispose(); super.dispose(); }
-  Future<void> submit() async {
-    setState(() { busy = true; error = null; });
-    try {
-      if (signup) {
-        final result = await db.auth.signUp(email: email.text.trim(), password: password.text, data: {'display_name': name.text.trim()});
-        if (result.session == null && mounted) error = 'Hesap oluşturuldu. E-posta doğrulaması gerekiyorsa gelen kutunu kontrol et.';
-      } else {
-        await db.auth.signInWithPassword(email: email.text.trim(), password: password.text);
-      }
-    } on AuthException catch (e) { error = e.message; }
-    catch (_) { error = 'Bağlantı kurulamadı. İnternet bağlantını kontrol et.'; }
-    if (mounted) setState(() { busy = false; });
-  }
-  @override
-  Widget build(BuildContext context) => Scaffold(body: SafeArea(child: Center(child: SingleChildScrollView(
-    padding: const EdgeInsets.all(24), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Icon(Icons.warehouse_rounded, size: 72, color: green), const SizedBox(height: 14),
-      const Text('SEVKTAKİP', textAlign: TextAlign.center, style: TextStyle(color: ink, fontSize: 28, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 8), const Text('Ortak depo ve mağaza stok yönetimi', textAlign: TextAlign.center), const SizedBox(height: 28),
-      if (signup) ...[TextField(controller: name, decoration: const InputDecoration(labelText: 'Ad soyad')), const SizedBox(height: 12)],
-      TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-posta')),
-      const SizedBox(height: 12), TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Şifre (en az 6 karakter)')),
-      if (error != null) ...[const SizedBox(height: 12), Text(error!, style: const TextStyle(color: Colors.red))],
-      const SizedBox(height: 18), FilledButton(onPressed: busy ? null : submit, child: Text(busy ? 'Bekleyin…' : signup ? 'Hesap oluştur' : 'Giriş yap')),
-      TextButton(onPressed: () => setState(() { signup = !signup; error = null; }), child: Text(signup ? 'Giriş yap' : 'Yeni hesap oluştur')),
-      const Text('Veriler ortak veritabanında tutulur; aynı hesapla giriş yaptığın cihazlarda görünür.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, fontSize: 12))
-    ]))))));
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(child: Center(child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: Padding(padding: const EdgeInsets.all(24), child: Column(
+        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Icon(Icons.warehouse_rounded, size: 72, color: green),
+          const SizedBox(height: 14),
+          const Text('SEVKTAKİP', textAlign: TextAlign.center,
+            style: TextStyle(color: ink, fontSize: 28, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          const Text('Ortak depo ve mağaza stok yönetimi', textAlign: TextAlign.center),
+          const SizedBox(height: 28),
+          FilledButton.icon(
+            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen(role: 'magaza'))),
+            icon: const Icon(Icons.storefront_outlined), label: const Padding(padding: EdgeInsets.all(12), child: Text('Mağaza', style: TextStyle(fontSize: 17)))),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen(role: 'depo'))),
+            icon: const Icon(Icons.inventory_2_outlined), label: const Padding(padding: EdgeInsets.all(12), child: Text('Depo', style: TextStyle(fontSize: 17)))),
+          const SizedBox(height: 18),
+          const Text('Hesap gerekmez. Stok ve talepler tüm cihazlarda ortak veritabanından yüklenir.',
+            textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, fontSize: 12)),
+        ],
+      )),
+    ))),
+  );
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String role;
+  const HomeScreen({super.key, required this.role});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -89,14 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int tab = 0;
   bool get depot => role == 'depo';
   @override
-  void initState() { super.initState(); load(); }
+  void initState() { super.initState(); role = widget.role; displayName = role == 'depo' ? 'Depo' : 'Mağaza'; load(); }
   Future<void> load() async {
     if (mounted) setState(() => loading = true);
     try {
-      final user = db.auth.currentUser!;
-      final profile = await db.from('profiles').select('role,display_name').eq('id', user.id).maybeSingle();
-      role = profile?['role'] as String? ?? 'magaza';
-      displayName = profile?['display_name'] as String? ?? '';
       products = List<Map<String,dynamic>>.from(await db.from('products').select().order('name'));
       orders = List<Map<String,dynamic>>.from(await db.from('orders').select('*,order_lines(*,products(name,unit))').order('created_at', ascending: false));
     } catch (e) { if (mounted) message('Veriler alınamadı: ' + e.toString(), true); }
@@ -116,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (tab >= titles.length) tab = 0;
     return Scaffold(
       appBar: AppBar(title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(titles[tab], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)), Text(displayName.isEmpty ? (depot ? 'Depocu alanı' : 'Mağaza alanı') : 'Merhaba, ' + displayName, style: const TextStyle(fontSize: 11, color: Colors.black54))]),
-        actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh)), IconButton(onPressed: () => db.auth.signOut(), icon: const Icon(Icons.logout))]),
+        actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh)), IconButton(onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const RoleSelectScreen())), tooltip: 'Rol değiştir', icon: const Icon(Icons.swap_horiz))]),
       body: IndexedStack(index: tab, children: [dashboard(), depot ? stockPage() : storePage(), depot ? requestsPage() : storeOrders(), if (depot) historyPage()]),
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i),
         destinations: depot ? const [NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Özet'), NavigationDestination(icon: Icon(Icons.inventory_2_outlined), label: 'Stok'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Talepler'), NavigationDestination(icon: Icon(Icons.history), label: 'Hareketler')] : const [NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Özet'), NavigationDestination(icon: Icon(Icons.inventory_2_outlined), label: 'Ürünler'), NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Siparişler')]),
@@ -168,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final c = TextEditingController(text: '1');
     final amount = await showDialog<int>(context: context, builder: (ctx) => AlertDialog(title: Text(p['name'].toString()), content: TextField(controller: c, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Eklenecek miktar')), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')), FilledButton(onPressed: () { final n = int.tryParse(c.text); if (n != null && n > 0) Navigator.pop(ctx, n); }, child: const Text('Ekle'))]));
     c.dispose(); if (amount == null) return;
-    await run(() async { await db.from('products').update({'quantity': (p['quantity'] as num).toInt() + amount, 'updated_at': DateTime.now().toUtc().toIso8601String()}).eq('id', p['id']); await db.from('stock_movements').insert({'product_id': p['id'], 'changed_by': db.auth.currentUser!.id, 'delta': amount, 'reason': 'Elle stok ekleme'}); });
+    await run(() async { await db.from('products').update({'quantity': (p['quantity'] as num).toInt() + amount, 'updated_at': DateTime.now().toUtc().toIso8601String()}).eq('id', p['id']); await db.from('stock_movements').insert({'product_id': p['id'], 'changed_by': null, 'delta': amount, 'reason': 'Elle stok ekleme'}); });
   }
   Future<void> createOrder({String? initialProduct}) async {
     if (products.isEmpty) { message('Önce depocu ürün eklemeli.', true); return; }
@@ -180,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ]))), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')), FilledButton(onPressed: () { if (controls.values.any((c) => (int.tryParse(c.text) ?? 0) > 0) && controls.values.every((c) => (int.tryParse(c.text) ?? -1) >= 0)) Navigator.pop(ctx, true); }, child: const Text('Talebi gönder'))]));
     if (result == true) {
       final lines = controls.entries.map((e) => {'product_id': e.key, 'quantity': int.tryParse(e.value.text) ?? 0}).where((e) => (e['quantity'] as int) > 0).toList();
-      await run(() async { final o = await db.from('orders').insert({'created_by': db.auth.currentUser!.id, 'note': note.text.trim()}).select('id').single(); await db.from('order_lines').insert(lines.map((l) => {...l, 'order_id': o['id']}).toList()); if (mounted) setState(() => tab = 2); });
+      await run(() async { final o = await db.from('orders').insert({'created_by': null, 'note': note.text.trim()}).select('id').single(); await db.from('order_lines').insert(lines.map((l) => {...l, 'order_id': o['id']}).toList()); if (mounted) setState(() => tab = 2); });
     }
     for (final c in controls.values) { c.dispose(); } note.dispose();
   }
