@@ -21,7 +21,7 @@ void main() {
     expect(find.text('Genel Bakış'), findsOneWidget);
     expect(find.text('Merhaba, Mağaza'), findsOneWidget);
     expect(find.text('Ürünler'), findsOneWidget);
-    expect(find.text('Siparişler'), findsOneWidget);
+    expect(find.text('Siparişler'), findsNWidgets(2));
   });
 
   testWidgets('depot role opens stock, requests and movement navigation',
