@@ -30,7 +30,8 @@ void main() {
 
     expect(find.text('Depo Stoku'), findsOneWidget);
     expect(find.text('Ürün ekle'), findsOneWidget);
-    expect(find.text('Henüz ürün eklenmedi'), findsOneWidget);
+    expect(find.text('Tavuk fileto'), findsOneWidget);
+    expect(find.text('Patates'), findsOneWidget);
   });
 
   testWidgets('store area opens without login', (tester) async {
@@ -42,5 +43,10 @@ void main() {
 
     expect(find.text('Genel Bakış'), findsOneWidget);
     expect(find.text('Mağaza alanı'), findsOneWidget);
+
+    await tester.tap(find.text('Ürünler'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tavuk fileto'), findsOneWidget);
+    expect(find.text('Birim: koli'), findsNothing);
   });
 }
