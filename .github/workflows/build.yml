@@ -38,9 +38,9 @@ jobs:
           print(f'Prepared Doyuyo icon from downloaded image: {source.size}')
           PY
       - run: flutter pub get
-      - name: Set app display name
+      - name: Set Android app display name
         run: |
-          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Doyuyo Sevkiyat' ios/Runner/Info.plist
+          sed -i 's/android:label="[^"]*"/android:label="Doyuyo Sevkiyat"/' android/app/src/main/AndroidManifest.xml
       - run: dart run flutter_launcher_icons
       - run: flutter analyze
       - run: flutter test
@@ -85,9 +85,72 @@ jobs:
       - run: dart run flutter_launcher_icons
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build ios --release --no-codesign
+      - name: Import Apple Distribution certificate
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$IOS_CERTIFICATE_BASE64" || { echo "Missing IOS_CERTIFICATE_BASE64 repository secret"; exit 1; }
+          test -n "$IOS_CERTIFICATE_PASSWORD" || { echo "Missing IOS_CERTIFICATE_PASSWORD repository secret"; exit 1; }
+          CERT_PATH="$RUNNER_TEMP/distribution.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$RUNNER_TEMP_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$RUNNER_TEMP_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$RUNNER_TEMP_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      - name: Install App Store provisioning profile
+        env:
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$IOS_PROVISIONING_PROFILE_BASE64" || { echo "Missing IOS_PROVISIONING_PROFILE_BASE64 repository secret"; exit 1; }
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' "$RUNNER_TEMP/profile.plist")
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+      - name: Create App Store export options
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.gazinizx.doyuyosevkiyat</key><string>$PROFILE_NAME</string>
+            </dict>
+            <key>destination</key><string>export</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+      - name: Build signed IPA
+        run: flutter build ipa --release --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
       - uses: actions/upload-artifact@v4
         with:
-          name: sevktakip-ios-unsigned-app
-          path: build/ios/iphoneos/Runner.app/
+          name: doyuyo-sevkiyat-signed-ipa
+          path: build/ios/ipa/*.ipa
           if-no-files-found: error
+      - name: Upload IPA to App Store Connect
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$APP_STORE_CONNECT_API_KEY_ID" || { echo "Missing APP_STORE_CONNECT_API_KEY_ID repository secret"; exit 1; }
+          test -n "$APP_STORE_CONNECT_ISSUER_ID" || { echo "Missing APP_STORE_CONNECT_ISSUER_ID repository secret"; exit 1; }
+          test -n "$APP_STORE_CONNECT_API_KEY_BASE64" || { echo "Missing APP_STORE_CONNECT_API_KEY_BASE64 repository secret"; exit 1; }
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8"
+          xcrun altool --upload-app --type ios --file build/ios/ipa/*.ipa --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
