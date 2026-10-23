@@ -109,9 +109,15 @@ jobs:
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
-          test -n "$IOS_PROVISIONING_PROFILE_BASE64" || { echo "Missing IOS_PROVISIONING_PROFILE_BASE64 repository secret"; exit 1; }
           PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
-          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          if [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ]; then
+            echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          elif [ -f "Doyuyo_Sevkiyat_App_Store.mobileprovision" ]; then
+            cp "Doyuyo_Sevkiyat_App_Store.mobileprovision" "$PROFILE_PATH"
+          else
+            echo "Missing provisioning profile: add IOS_PROVISIONING_PROFILE_BASE64 secret or commit Doyuyo_Sevkiyat_App_Store.mobileprovision"
+            exit 1
+          fi
           security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$RUNNER_TEMP/profile.plist")
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' "$RUNNER_TEMP/profile.plist")
