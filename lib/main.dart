@@ -76,7 +76,7 @@ class _LocalHomeState extends State<LocalHome> {
         _metric('Ürün çeşidi','${products.length}',Icons.inventory_2,const Color(0xFFE6EDFF),const Color(0xFF4D69C8)),
         _metric(depot?'Bekleyen talep':'Siparişlerim',depot?'${pending}':'${orders.length}',Icons.receipt_long,const Color(0xFFFFEFD8),const Color(0xFFBD7A19)),
         _metric('Kritik stok','${low}',Icons.warning_amber_rounded,const Color(0xFFFFE4E4),const Color(0xFFD44B55)),
-        _metric('Onaylanan','${approved}',Icons.check_circle_outline,const Color(0xFFDDF7EF),const Color(0xFF168D71)]),
+        _metric('Onaylanan','${approved}',Icons.check_circle_outline,const Color(0xFFDDF7EF),const Color(0xFF168D71))]),
       const SizedBox(height:20),_heading(depot?'Son talepler':'Son siparişler'),
       if(orders.isEmpty)_empty('Henüz sipariş yok',depot?'Mağazadan talep geldiğinde burada görünür.':'Ürünler bölümünden yeni bir talep oluştur.'),
       ...orders.reversed.take(5).map(_orderCard),
@@ -118,7 +118,12 @@ class _LocalHomeState extends State<LocalHome> {
       if(actions&&status=='Bekliyor')...[
         const SizedBox(height:12),Row(children:[
           Expanded(child:OutlinedButton.icon(onPressed:()=>_rejectOrder(o),icon:const Icon(Icons.close),label:const Text('Reddet'),style:OutlinedButton.styleFrom(foregroundColor:Colors.red))),
-          const SizedBox(width:10),Expanded(child:FilledButton.icon(onPressed:()=>_approveOrder(o),icon:const Icon(Icons.check),label:const Text('Onayla')))])]])));
+          const SizedBox(width:10),
+          Expanded(child:FilledButton.icon(onPressed:()=>_approveOrder(o),icon:const Icon(Icons.check),label:const Text('Onayla'))),
+        ]),
+      ]],
+    )));
+
   }
   Widget _metric(String label,String value,IconData icon,Color bg,Color fg)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(17),border:Border.all(color:const Color(0xFFE9EDF4))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Container(width:38,height:38,decoration:BoxDecoration(color:bg,borderRadius:BorderRadius.circular(11)),child:Icon(icon,color:fg)),const Spacer(),Text(value,style:const TextStyle(color:navy,fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:3),Text(label,style:const TextStyle(color:muted,fontSize:11))]));
   Widget _heading(String s)=>Text(s,style:const TextStyle(color:navy,fontSize:17,fontWeight:FontWeight.w900));
@@ -131,7 +136,7 @@ class _LocalHomeState extends State<LocalHome> {
       const SizedBox(height:10),TextFormField(controller:code,decoration:const InputDecoration(labelText:'Ürün kodu (isteğe bağlı)')),
       const SizedBox(height:10),TextFormField(controller:unit,decoration:const InputDecoration(labelText:'Birim (adet, kg, koli...)'),validator:(v)=>(v==null||v.trim().isEmpty)?'Birim gerekli':null),
       const SizedBox(height:10),TextFormField(controller:stock,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Başlangıç stoğu'),validator:_validateNumber),
-      const SizedBox(height:10),TextFormField(controller:minimum,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Minimum stok uyarısı'),validator:_validateNumber)]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('İptal')),FilledButton(onPressed:(){if(key.currentState!.validate())Navigator.pop(ctx,true);},child:const Text('Kaydet'))]));
+      const SizedBox(height:10),TextFormField(controller:minimum,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Minimum stok uyarısı'),validator:_validateNumber)])))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('İptal')),FilledButton(onPressed:(){if(key.currentState!.validate())Navigator.pop(ctx,true);},child:const Text('Kaydet'))]));
     if(ok==true){
       if(products.any((p)=>p['name'].toString().toLowerCase()==name.text.trim().toLowerCase())){_toast('Bu ürün zaten kayıtlı.',error:true);}
       else{products.add({'id':DateTime.now().microsecondsSinceEpoch,'name':name.text.trim(),'code':code.text.trim().isEmpty?'UR-${products.length+1}':code.text.trim(),'unit':unit.text.trim(),'stock':_number(stock.text),'minimum':_number(minimum.text)});await _save();if(mounted)setState(()=>{});_toast('Ürün kaydedildi.');}
@@ -151,7 +156,7 @@ class _LocalHomeState extends State<LocalHome> {
       ...products.map((p)=>Padding(padding:const EdgeInsets.only(bottom:10),child:Row(children:[
         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(p['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),Text('Kayıtlı stok: ${_qty((p['stock'] as num).toDouble())} ${p['unit']}',style:const TextStyle(color:muted,fontSize:11))])),
         SizedBox(width:94,child:TextFormField(controller:quantities[p['id'] as int],keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Miktar',isDense:true),validator:(v)=>_number(v??'0')<0?'Geçersiz':null))]))),
-      TextField(controller:note,decoration:const InputDecoration(labelText:'Not (isteğe bağlı)'))]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('İptal')),FilledButton(onPressed:(){if(key.currentState!.validate())Navigator.pop(ctx,true);},child:const Text('Talep gönder'))]));
+      TextField(controller:note,decoration:const InputDecoration(labelText:'Not (isteğe bağlı)'))])))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('İptal')),FilledButton(onPressed:(){if(key.currentState!.validate())Navigator.pop(ctx,true);},child:const Text('Talep gönder'))]));
     if(ok==true){
       final items=<Map<String,dynamic>>[];for(final p in products){final q=_number(quantities[p['id'] as int]!.text);if(q>0)items.add({'productId':p['id'],'name':p['name'],'unit':p['unit'],'quantity':q});}
       if(items.isEmpty){_toast('En az bir ürün için miktar gir.',error:true);}
