@@ -19,6 +19,14 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create . --platforms=android,ios --org com.gazinizx --project-name doyuyosevkiyat
+      - name: Ensure Android network permission
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' "$MANIFEST" || sed -i '/<application/i\    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
+          grep -q 'android.permission.INTERNET' "$MANIFEST"
+          echo "Verified Android INTERNET permission (needed for HTTPS API calls; no runtime prompt)."
       - name: Prepare Doyuyo app icon
         shell: bash
         run: |
@@ -55,6 +63,17 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create . --platforms=android,ios --org com.gazinizx --project-name doyuyosevkiyat
+      - name: Validate iOS secure network configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLIST=ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST"
+          if /usr/libexec/PlistBuddy -c 'Print :NSAppTransportSecurity:NSAllowsArbitraryLoads' "$PLIST" >/dev/null 2>&1; then
+            echo "::error::Do not enable arbitrary insecure HTTP loads. Supabase must use HTTPS."
+            exit 1
+          fi
+          echo "Verified iOS uses Apple's default HTTPS transport security; no broad ATS exception added."
       - name: Prepare Doyuyo app icon
         shell: bash
         run: |
