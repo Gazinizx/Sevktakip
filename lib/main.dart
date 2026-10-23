@@ -72,12 +72,52 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get depot => role == 'depo';
   @override
   void initState() { super.initState(); role = widget.role; displayName = role == 'depo' ? 'Depo' : 'Mağaza'; load(); }
+  Future<T> _retryNetwork<T>(Future<T> Function() request) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await request().timeout(const Duration(seconds: 20));
+      } catch (e) {
+        lastError = e;
+        // Retry transient DNS/network/time-out failures; do not silently mask
+        // database permission/schema errors with repeated requests.
+        final text = e.toString().toLowerCase();
+        final transient = text.contains('socketexception') ||
+            text.contains('failed host lookup') ||
+            text.contains('connection refused') ||
+            text.contains('connection reset') ||
+            text.contains('timed out') ||
+            text.contains('timeoutexception');
+        if (!transient || attempt == 2) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      }
+    }
+    throw lastError ?? Exception('Ağ isteği başarısız.');
+  }
+
   Future<void> load() async {
     if (mounted) setState(() => loading = true);
     try {
-      products = List<Map<String,dynamic>>.from(await db.from('products').select().order('name'));
-      orders = List<Map<String,dynamic>>.from(await db.from('orders').select('*,order_lines(*,products(name,unit))').order('created_at', ascending: false));
-    } catch (e) { if (mounted) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) message('Veriler alınamadı: ' + e.toString(), true); }); } }
+      final loadedProducts = await _retryNetwork(() =>
+          db.from('products').select().order('name'));
+      final loadedOrders = await _retryNetwork(() =>
+          db.from('orders').select('*,order_lines(*,products(name,unit))')
+              .order('created_at', ascending: false));
+      products = List<Map<String,dynamic>>.from(loadedProducts);
+      orders = List<Map<String,dynamic>>.from(loadedOrders);
+    } catch (e) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final detail = e.toString();
+          final isDns = detail.toLowerCase().contains('failed host lookup') ||
+              detail.toLowerCase().contains('socketexception');
+          message(isDns
+              ? 'Sunucuya ulaşılamıyor. İnternet bağlantısı veya Supabase DNS erişimi kontrol edilmeli. Ayrıntı: $detail'
+              : 'Veriler alınamadı: $detail', true);
+        });
+      }
+    }
     if (mounted) setState(() => loading = false);
   }
   void message(String text, [bool error = false]) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: error ? Colors.red : ink));
