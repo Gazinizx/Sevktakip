@@ -19,7 +19,21 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create . --platforms=android,ios
+      - name: Prepare official Doyuyo app icon
+        run: |
+          mkdir -p assets
+          curl --fail --location --retry 3 https://doyuyo.com/favicon.ico --output /tmp/doyuyo.ico
+          python -m pip install --quiet Pillow
+          python - <<'PY'
+          from PIL import Image, ImageOps
+          source = Image.open('/tmp/doyuyo.ico').convert('RGBA')
+          source.thumbnail((820, 820), Image.Resampling.LANCZOS)
+          canvas = Image.new('RGBA', (1024, 1024), (255, 255, 255, 255))
+          canvas.alpha_composite(source, ((1024-source.width)//2, (1024-source.height)//2))
+          canvas.convert('RGB').save('assets/doyuyo-app-icon.png', quality=100)
+          PY
       - run: flutter pub get
+      - run: dart run flutter_launcher_icons
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --release
@@ -38,7 +52,21 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create . --platforms=android,ios
+      - name: Prepare official Doyuyo app icon
+        run: |
+          mkdir -p assets
+          curl --fail --location --retry 3 https://doyuyo.com/favicon.ico --output /tmp/doyuyo.ico
+          python3 -m pip install --quiet Pillow
+          python3 - <<'PY'
+          from PIL import Image
+          source = Image.open('/tmp/doyuyo.ico').convert('RGBA')
+          source.thumbnail((820, 820), Image.Resampling.LANCZOS)
+          canvas = Image.new('RGBA', (1024, 1024), (255, 255, 255, 255))
+          canvas.alpha_composite(source, ((1024-source.width)//2, (1024-source.height)//2))
+          canvas.convert('RGB').save('assets/doyuyo-app-icon.png', quality=100)
+          PY
       - run: flutter pub get
+      - run: dart run flutter_launcher_icons
       - run: flutter analyze
       - run: flutter test
       - run: flutter build ios --release --no-codesign
