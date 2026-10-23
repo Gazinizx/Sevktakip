@@ -5,7 +5,7 @@ void main() {
   testWidgets('opens without login and offers store and depot roles',
       (tester) async {
     await tester.pumpWidget(const SevkTakipApp());
-    expect(find.text('SEVKTAKİP'), findsOneWidget);
+    expect(find.text('DOYUYO SEVKİYAT'), findsOneWidget);
     expect(find.text('Mağaza'), findsOneWidget);
     expect(find.text('Depo'), findsOneWidget);
     expect(find.textContaining('Hesap gerekmez.'), findsOneWidget);
