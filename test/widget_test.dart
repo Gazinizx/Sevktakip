@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sevktakip/main.dart';
+import 'package:doyuyo_sevkiyat/main.dart';
 
 void main() {
   testWidgets('opens without login and offers store and depot roles',
