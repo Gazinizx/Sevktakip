@@ -18,7 +18,7 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter create . --platforms=android,ios
+      - run: flutter create . --platforms=android,ios --org com.gazinizx --project-name doyuyosevkiyat
       - name: Prepare Doyuyo app icon
         shell: bash
         run: |
@@ -38,6 +38,9 @@ jobs:
           print(f'Prepared Doyuyo icon from downloaded image: {source.size}')
           PY
       - run: flutter pub get
+      - name: Set app display name
+        run: |
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Doyuyo Sevkiyat' ios/Runner/Info.plist
       - run: dart run flutter_launcher_icons
       - run: flutter analyze
       - run: flutter test
@@ -56,7 +59,7 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter create . --platforms=android,ios
+      - run: flutter create . --platforms=android,ios --org com.gazinizx --project-name doyuyosevkiyat
       - name: Prepare Doyuyo app icon
         shell: bash
         run: |
@@ -76,6 +79,9 @@ jobs:
           print(f'Prepared Doyuyo icon from downloaded image: {source.size}')
           PY
       - run: flutter pub get
+      - name: Set app display name
+        run: |
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Doyuyo Sevkiyat' ios/Runner/Info.plist
       - run: dart run flutter_launcher_icons
       - run: flutter analyze
       - run: flutter test
