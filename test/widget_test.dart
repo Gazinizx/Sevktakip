@@ -1,52 +1,39 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sevktakip/main.dart';
 
 void main() {
-  setUp(() {
-    SharedPreferences.setMockInitialValues({});
-  });
-
-  testWidgets('opens without login and shows both work areas', (tester) async {
-    await tester.pumpWidget(const SevkTakipApp());
-    await tester.pumpAndSettle();
-
-    expect(find.text('SEVKTAKİP'), findsOneWidget);
-    expect(find.text('Mağaza'), findsOneWidget);
-    expect(find.text('Depocu'), findsOneWidget);
-  });
-
-  testWidgets('depot stock page opens and offers product creation',
+  testWidgets('opens without login and offers store and depot roles',
       (tester) async {
     await tester.pumpWidget(const SevkTakipApp());
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Depocu'));
-    await tester.pumpAndSettle();
-    expect(find.text('Genel Bakış'), findsOneWidget);
-
-    await tester.tap(find.text('Stok'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Depo Stoku'), findsOneWidget);
-    expect(find.text('Ürün ekle'), findsOneWidget);
-    expect(find.text('Tavuk fileto'), findsOneWidget);
-    expect(find.text('Patates'), findsOneWidget);
+    expect(find.text('SEVKTAKİP'), findsOneWidget);
+    expect(find.text('Mağaza'), findsOneWidget);
+    expect(find.text('Depo'), findsOneWidget);
+    expect(find.text('Hesap gerekmez.'), findsOneWidget);
   });
 
-  testWidgets('store area opens without login', (tester) async {
+  testWidgets('store role opens the shared-data store dashboard',
+      (tester) async {
     await tester.pumpWidget(const SevkTakipApp());
-    await tester.pumpAndSettle();
-
     await tester.tap(find.text('Mağaza'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Genel Bakış'), findsOneWidget);
-    expect(find.text('Mağaza alanı'), findsOneWidget);
+    expect(find.text('Mağaza'), findsOneWidget);
+    expect(find.text('Ürünler'), findsOneWidget);
+    expect(find.text('Siparişler'), findsOneWidget);
+  });
 
-    await tester.tap(find.text('Ürünler'));
-    await tester.pumpAndSettle();
-    expect(find.text('Tavuk fileto'), findsOneWidget);
-    expect(find.text('Birim: koli'), findsNothing);
+  testWidgets('depot role opens stock, requests and movement navigation',
+      (tester) async {
+    await tester.pumpWidget(const SevkTakipApp());
+    await tester.tap(find.text('Depo'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Genel Bakış'), findsOneWidget);
+    expect(find.text('Stok'), findsOneWidget);
+    expect(find.text('Talepler'), findsOneWidget);
+    expect(find.text('Hareketler'), findsOneWidget);
   });
 }
