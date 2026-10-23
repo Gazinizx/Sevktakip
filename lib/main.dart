@@ -902,17 +902,33 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ..._stock.map((item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.only(bottom: 12),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Expanded(child: Text('${item.name} (${item.unit})')),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.name,
+                                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'Stokta: ${item.quantity}${item.unit == 'adet' ? '' : ' ${item.unit}'}',
+                                    style: const TextStyle(
+                                        color: Colors.black54, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
                             SizedBox(
-                              width: 82,
+                              width: 88,
                               child: TextFormField(
                                 controller: quantities[item.id],
                                 keyboardType: TextInputType.number,
                                 decoration: const InputDecoration(
-                                    labelText: 'Miktar', isDense: true),
+                                    labelText: 'Talep', isDense: true),
                                 validator: (value) {
                                   final amount = int.tryParse(value ?? '');
                                   if (amount == null || amount < 0) {
