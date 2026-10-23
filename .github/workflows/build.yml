@@ -19,18 +19,23 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create . --platforms=android,ios
-      - name: Prepare official Doyuyo app icon
+      - name: Prepare Doyuyo app icon
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p assets
-          curl --fail --location --retry 3 https://doyuyo.com/favicon.ico --output /tmp/doyuyo.ico
-          python -m pip install --quiet Pillow
-          python - <<'PY'
-          from PIL import Image, ImageOps
-          source = Image.open('/tmp/doyuyo.ico').convert('RGBA')
+          curl --fail --location --retry 3 --retry-all-errors "https://www.google.com/s2/favicons?domain=doyuyo.com&sz=512" --output /tmp/doyuyo-icon.png
+          python3 -m venv /tmp/icon-venv
+          /tmp/icon-venv/bin/python -m pip install --quiet --upgrade pip Pillow
+          /tmp/icon-venv/bin/python - <<'PY'
+          from PIL import Image
+          source = Image.open('/tmp/doyuyo-icon.png').convert('RGBA')
+          source.load()
           source.thumbnail((820, 820), Image.Resampling.LANCZOS)
           canvas = Image.new('RGBA', (1024, 1024), (255, 255, 255, 255))
           canvas.alpha_composite(source, ((1024-source.width)//2, (1024-source.height)//2))
-          canvas.convert('RGB').save('assets/doyuyo-app-icon.png', quality=100)
+          canvas.convert('RGB').save('assets/doyuyo-app-icon.png')
+          print(f'Prepared Doyuyo icon from downloaded image: {source.size}')
           PY
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
@@ -52,18 +57,23 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create . --platforms=android,ios
-      - name: Prepare official Doyuyo app icon
+      - name: Prepare Doyuyo app icon
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p assets
-          curl --fail --location --retry 3 https://doyuyo.com/favicon.ico --output /tmp/doyuyo.ico
-          python3 -m pip install --quiet Pillow
-          python3 - <<'PY'
+          curl --fail --location --retry 3 --retry-all-errors "https://www.google.com/s2/favicons?domain=doyuyo.com&sz=512" --output /tmp/doyuyo-icon.png
+          python3 -m venv /tmp/icon-venv
+          /tmp/icon-venv/bin/python -m pip install --quiet --upgrade pip Pillow
+          /tmp/icon-venv/bin/python - <<'PY'
           from PIL import Image
-          source = Image.open('/tmp/doyuyo.ico').convert('RGBA')
+          source = Image.open('/tmp/doyuyo-icon.png').convert('RGBA')
+          source.load()
           source.thumbnail((820, 820), Image.Resampling.LANCZOS)
           canvas = Image.new('RGBA', (1024, 1024), (255, 255, 255, 255))
           canvas.alpha_composite(source, ((1024-source.width)//2, (1024-source.height)//2))
-          canvas.convert('RGB').save('assets/doyuyo-app-icon.png', quality=100)
+          canvas.convert('RGB').save('assets/doyuyo-app-icon.png')
+          print(f'Prepared Doyuyo icon from downloaded image: {source.size}')
           PY
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
