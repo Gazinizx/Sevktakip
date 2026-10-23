@@ -24,19 +24,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets
-          curl --fail --location --retry 3 --retry-all-errors "https://www.google.com/s2/favicons?domain=doyuyo.com&sz=512" --output /tmp/doyuyo-icon.png
-          python3 -m venv /tmp/icon-venv
-          /tmp/icon-venv/bin/python -m pip install --quiet --upgrade pip Pillow
-          /tmp/icon-venv/bin/python - <<'PY'
-          from PIL import Image
-          source = Image.open('/tmp/doyuyo-icon.png').convert('RGBA')
-          source.load()
-          source.thumbnail((820, 820), Image.Resampling.LANCZOS)
-          canvas = Image.new('RGBA', (1024, 1024), (255, 255, 255, 255))
-          canvas.alpha_composite(source, ((1024-source.width)//2, (1024-source.height)//2))
-          canvas.convert('RGB').save('assets/doyuyo-app-icon.png')
-          print(f'Prepared Doyuyo icon from downloaded image: {source.size}')
-          PY
+          if [ ! -s assets/doyuyo-app-icon.png ]; then
+            echo "::error::The supplied Doyuyo logo must be committed at assets/doyuyo-app-icon.png before building. Refusing to substitute a favicon."
+            exit 1
+          fi
       - run: flutter pub get
       - name: Set Android app display name
         run: |
@@ -65,19 +56,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets
-          curl --fail --location --retry 3 --retry-all-errors "https://www.google.com/s2/favicons?domain=doyuyo.com&sz=512" --output /tmp/doyuyo-icon.png
-          python3 -m venv /tmp/icon-venv
-          /tmp/icon-venv/bin/python -m pip install --quiet --upgrade pip Pillow
-          /tmp/icon-venv/bin/python - <<'PY'
-          from PIL import Image
-          source = Image.open('/tmp/doyuyo-icon.png').convert('RGBA')
-          source.load()
-          source.thumbnail((820, 820), Image.Resampling.LANCZOS)
-          canvas = Image.new('RGBA', (1024, 1024), (255, 255, 255, 255))
-          canvas.alpha_composite(source, ((1024-source.width)//2, (1024-source.height)//2))
-          canvas.convert('RGB').save('assets/doyuyo-app-icon.png')
-          print(f'Prepared Doyuyo icon from downloaded image: {source.size}')
-          PY
+          if [ ! -s assets/doyuyo-app-icon.png ]; then
+            echo "::error::The supplied Doyuyo logo must be committed at assets/doyuyo-app-icon.png before building. Refusing to substitute a favicon."
+            exit 1
+          fi
       - run: flutter pub get
       - name: Set app display name
         run: |
