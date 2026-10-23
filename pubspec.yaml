@@ -1,7 +1,7 @@
 name: sevktakip
-description: SevkTakip local warehouse and store stock request app.
+description: SevkTakip shared warehouse and store stock request app.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  shared_preferences: ^2.3.5
+  supabase_flutter: ^2.9.1
 
 dev_dependencies:
   flutter_test:
