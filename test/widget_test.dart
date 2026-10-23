@@ -8,7 +8,7 @@ void main() {
     expect(find.text('SEVKTAKİP'), findsOneWidget);
     expect(find.text('Mağaza'), findsOneWidget);
     expect(find.text('Depo'), findsOneWidget);
-    expect(find.text('Hesap gerekmez.'), findsOneWidget);
+    expect(find.textContaining('Hesap gerekmez.'), findsOneWidget);
   });
 
   testWidgets('store role opens the shared-data store dashboard',
@@ -19,7 +19,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Genel Bakış'), findsOneWidget);
-    expect(find.text('Mağaza'), findsOneWidget);
+    expect(find.text('Merhaba, Mağaza'), findsOneWidget);
     expect(find.text('Ürünler'), findsOneWidget);
     expect(find.text('Siparişler'), findsOneWidget);
   });
