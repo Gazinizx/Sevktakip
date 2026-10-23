@@ -118,7 +118,7 @@ class _LocalHomeState extends State<LocalHome> {
       if(actions&&status=='Bekliyor')...[
         const SizedBox(height:12),Row(children:[
           Expanded(child:OutlinedButton.icon(onPressed:()=>_rejectOrder(o),icon:const Icon(Icons.close),label:const Text('Reddet'),style:OutlinedButton.styleFrom(foregroundColor:Colors.red))),
-          const SizedBox(width:10),Expanded(child:FilledButton.icon(onPressed:()=>_approveOrder(o),icon:const Icon(Icons.check),label:const Text('Onayla')))])]]))));
+          const SizedBox(width:10),Expanded(child:FilledButton.icon(onPressed:()=>_approveOrder(o),icon:const Icon(Icons.check),label:const Text('Onayla')))])]])));
   }
   Widget _metric(String label,String value,IconData icon,Color bg,Color fg)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(17),border:Border.all(color:const Color(0xFFE9EDF4))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Container(width:38,height:38,decoration:BoxDecoration(color:bg,borderRadius:BorderRadius.circular(11)),child:Icon(icon,color:fg)),const Spacer(),Text(value,style:const TextStyle(color:navy,fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:3),Text(label,style:const TextStyle(color:muted,fontSize:11))]));
   Widget _heading(String s)=>Text(s,style:const TextStyle(color:navy,fontSize:17,fontWeight:FontWeight.w900));
