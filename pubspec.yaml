@@ -1,7 +1,7 @@
 name: sevktakip
-description: Sevktakip yerel depo ve mağaza stok takip uygulaması.
+description: SevkTakip local warehouse and store stock request app.
 publish_to: "none"
-version: 0.2.0+2
+version: 1.0.0+1
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   shared_preferences: ^2.3.5
 
 dev_dependencies:
