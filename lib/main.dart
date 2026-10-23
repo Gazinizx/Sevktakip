@@ -74,9 +74,9 @@ class _LocalHomeState extends State<LocalHome> {
         Text(depot?'Mağazadan gelen talepleri incele ve onayla.':'Ürünleri seç, miktarları gir ve talebini gönder.',style:const TextStyle(color:Colors.white70,fontSize:13))])),
       const SizedBox(height:16),GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:2,crossAxisSpacing:12,mainAxisSpacing:12,childAspectRatio:1.4,children:[
         _metric('Ürün çeşidi','${products.length}',Icons.inventory_2,const Color(0xFFE6EDFF),const Color(0xFF4D69C8)),
-        _metric(depot?'Bekleyen talep':'Siparişlerim',depot?'${pending}':'${orders.length}',Icons.receipt_long,const Color(0xFFFFEFD8),const Color(0xFFBD7A19)),
-        _metric('Kritik stok','${low}',Icons.warning_amber_rounded,const Color(0xFFFFE4E4),const Color(0xFFD44B55)),
-        _metric('Onaylanan','${approved}',Icons.check_circle_outline,const Color(0xFFDDF7EF),const Color(0xFF168D71))]),
+        _metric(depot?'Bekleyen talep':'Siparişlerim',depot?'$pending':'${orders.length}',Icons.receipt_long,const Color(0xFFFFEFD8),const Color(0xFFBD7A19)),
+        _metric('Kritik stok','$low',Icons.warning_amber_rounded,const Color(0xFFFFE4E4),const Color(0xFFD44B55)),
+        _metric('Onaylanan','$approved',Icons.check_circle_outline,const Color(0xFFDDF7EF),const Color(0xFF168D71))]),
       const SizedBox(height:20),_heading(depot?'Son talepler':'Son siparişler'),
       if(orders.isEmpty)_empty('Henüz sipariş yok',depot?'Mağazadan talep geldiğinde burada görünür.':'Ürünler bölümünden yeni bir talep oluştur.'),
       ...orders.reversed.take(5).map(_orderCard),
