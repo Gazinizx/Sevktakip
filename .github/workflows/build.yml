@@ -104,10 +104,17 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -f pkcs12 -k "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           security default-keychain -d user -s "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "Available code-signing identities:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          IDENTITY_COUNT="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk '/valid identities found/ {print $1}')"
+          if [ "${IDENTITY_COUNT:-0}" -lt 1 ]; then
+            echo "::error::The P12 was imported but macOS found no valid code-signing identity. Export a valid Apple Distribution certificate WITH its private key from Keychain Access, then update IOS_CERTIFICATE_BASE64 and IOS_CERTIFICATE_PASSWORD."
+            exit 1
+          fi
       - name: Install App Store provisioning profile
         env:
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
