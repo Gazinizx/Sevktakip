@@ -2,24 +2,33 @@
 
 Flutter uygulaması: mağazanın depodan ürün ve miktar talep etmesi, depocunun talepleri inceleyip onaylaması ve onay sırasında stoktan düşüm yapılması.
 
-## Kapsam
-- Giriş/hesap ekranı olmadan Mağaza veya Depocu çalışma alanı seçimi.
-- Depocu ürün ekler, başlangıç stokunu ve kritik stok seviyesini belirler.
-- Mağaza ürün ve miktar seçerek talep oluşturur.
-- Depocu talebi reddedebilir veya onaylayabilir.
-- Onaydan önce tüm ürünlerin stoğu doğrulanır; yetersiz stokta talep onaylanmaz.
-- Başarılı onayda stok miktarları bir kez düşürülür.
-- Ürün ve talep verileri cihazda saklanır.
+## Ortak veritabanı
+- Supabase projesi: `SevkTakip`
+- Bölge: Frankfurt, Avrupa (eu-central-1)
+- Android ve iOS aynı Supabase veritabanını kullanır.
+- Hesap oluşturma/giriş e-posta ve şifre ile yapılır.
+- Ürünler, stoklar, talepler ve stok hareketleri bulutta saklanır.
+- Talep onayı sunucu tarafında tek bir işlem olarak yürütülür; stok yetersizse onay reddedilir.
+- Tablolarda Row Level Security (RLS) açıktır. Uygulamada yalnızca publishable API anahtarı kullanılır; secret/service-role anahtarı uygulamaya eklenmez.
 
-## Yerel sürüm sınırı
-Bu sürüm internet sunucusu veya ortak veritabanı kullanmaz. Veriler yalnızca uygulamanın kurulu olduğu cihazda saklanır; farklı mağaza ve depo telefonları arasında senkronizasyon yapmaz. Çok cihazlı kullanım için daha sonra güvenli bir ortak backend gerekir.
+## Depocu hesabı
+Yeni kayıtlar güvenlik amacıyla varsayılan olarak mağaza rolü alır. Depocu rolü, ilgili kullanıcı hesabı oluşturulduktan sonra Supabase SQL Editor üzerinden yetkili yönetici tarafından atanmalıdır. E-posta adresini doğruladıktan sonra şu SQL'deki e-posta değerini değiştirerek çalıştır:
+```sql
+update public.profiles
+set role = 'depo'
+where id = (
+  select id from auth.users
+  where lower(email) = lower('DEPO_HESABI_EPOSTASI')
+);
+```
+Bu işlem yapılana kadar o kullanıcı mağaza ekranını görür; yetkisiz kullanıcıların kendilerini depocu yapmasına izin verilmez.
 
-## Derleme
+## Geliştirme ve derleme
 ```sh
 flutter pub get
 flutter analyze
 flutter test
 flutter build apk --release
-```
+``
 
-GitHub Actions, Android APK ve imzasız iOS uygulama çıktısını ayrı artifact olarak üretir. iOS'u TestFlight/App Store'a göndermek için Apple imzalama ve dağıtım adımları ayrıca gerekir.
+GitHub Actions Android APK ve imzasız iOS uygulama çıktısı üretir. TestFlight/App Store için ayrıca Apple imzalama gerekir.
