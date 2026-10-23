@@ -460,7 +460,8 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
   }
 
   Widget _metric(String label, String value, IconData icon,
-          {VoidCallback? onTap}) => Card(
+          {VoidCallback? onTap}) =>
+      Card(
         color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -468,21 +469,56 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: _green),
-              Text(value,
-                  style: const TextStyle(
-                      color: _ink, fontSize: 25, fontWeight: FontWeight.w900)),
-              Text(label,
-                  style: const TextStyle(color: Colors.black54, fontSize: 12)),
-            ],
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: _green),
+                Text(value,
+                    style: const TextStyle(
+                        color: _ink, fontSize: 25, fontWeight: FontWeight.w900)),
+                Text(label,
+                    style: const TextStyle(color: Colors.black54, fontSize: 12)),
+              ],
+            ),
           ),
         ),
       );
+
+  Future<void> _showCriticalStock() async {
+    final critical = _stock.where((item) => item.quantity <= item.minimum).toList()
+      ..sort((a, b) => (a.quantity - a.minimum).compareTo(b.quantity - b.minimum));
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Kritik stok ürünleri'),
+        content: SizedBox(
+          width: 420,
+          child: critical.isEmpty
+              ? const Text('Kritik seviyede ürün bulunmuyor.')
+              : SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: critical.map((item) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.warning_amber_rounded, color: Colors.deepOrange),
+                      title: Text(item.name),
+                      subtitle: Text('Minimum: ${item.minimum}'),
+                      trailing: Text(
+                        '${item.quantity}${item.unit == 'adet' ? '' : ' ${item.unit}'}',
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: _ink),
+                      ),
+                    )).toList(),
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
+        ],
+      ),
+    );
+  }
 
   Widget _stockPage() => ListView(
         padding: const EdgeInsets.all(16),
