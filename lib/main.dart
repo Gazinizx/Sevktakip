@@ -1,180 +1,180 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'live_app.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-bool supabaseConfigured = false;
-
-const navy = Color(0xFF12233F);
-const deep = Color(0xFF0B172B);
-const mint = Color(0xFF43D6B0);
-const canvas = Color(0xFFF5F7FB);
-const muted = Color(0xFF7B879B);
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  const url = String.fromEnvironment('SUPABASE_URL');
-  const key = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
-  if (url.isNotEmpty && key.isNotEmpty) {
-    await Supabase.initialize(url: url, publishableKey: key);
-    supabaseConfigured = true;
-  }
-  runApp(const SevkTakipApp());
-}
+const navy=Color(0xFF12233F), deep=Color(0xFF0B172B), mint=Color(0xFF43D6B0), canvas=Color(0xFFF5F7FB), muted=Color(0xFF7B879B);
+Future<void> main() async { WidgetsFlutterBinding.ensureInitialized(); runApp(const SevkTakipApp()); }
 
 class SevkTakipApp extends StatelessWidget {
   const SevkTakipApp({super.key});
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'SevkTakip', debugShowCheckedModeBanner: false,
-    theme: ThemeData(useMaterial3: true, scaffoldBackgroundColor: canvas,
-      colorScheme: ColorScheme.fromSeed(seedColor: navy, primary: navy, secondary: mint)),
-    home: supabaseConfigured ? const _AppGate() : const HomeShell(),
-  );
+  @override Widget build(BuildContext context)=>MaterialApp(title:'Sevktakip',debugShowCheckedModeBanner:false,
+    theme:ThemeData(useMaterial3:true,scaffoldBackgroundColor:canvas,colorScheme:ColorScheme.fromSeed(seedColor:navy,primary:navy,secondary:mint),inputDecorationTheme:const InputDecorationTheme(border:OutlineInputBorder())),
+    home:const LocalHome());
 }
+class LocalHome extends StatefulWidget { const LocalHome({super.key}); @override State<LocalHome> createState()=>_LocalHomeState(); }
+class _LocalHomeState extends State<LocalHome> {
+  static const pk='sevktakip_products_v1', ok='sevktakip_orders_v1';
+  List<Map<String,dynamic>> products=[], orders=[];
+  String? role; bool loading=true; int tab=0; final search=TextEditingController();
+  bool get depot=>role=='depo';
+  @override void initState(){super.initState();_load();}
+  @override void dispose(){search.dispose();super.dispose();}
+  Future<void> _load() async {
+    final prefs=await SharedPreferences.getInstance();
+    try {
+      final p=prefs.getString(pk),o=prefs.getString(ok);
+      if(p!=null) products=(jsonDecode(p) as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+      if(o!=null) orders=(jsonDecode(o) as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+    } catch (_) {products=[];orders=[];}
+    if(mounted)setState(()=>loading=false);
+  }
+  Future<void> _save() async {final p=await SharedPreferences.getInstance();await p.setString(pk,jsonEncode(products));await p.setString(ok,jsonEncode(orders));}
+  void _toast(String s,{bool error=false}){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s),backgroundColor:error?Colors.red.shade700:navy));}
 
-class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
-  @override
-  State<HomeShell> createState() => _HomeShellState();
-}
-class _HomeShellState extends State<HomeShell> {
-  int page = 0;
-  final pages = const [
-    ('Genel Bakış', Icons.grid_view_rounded), ('Siparişler', Icons.receipt_long_rounded),
-    ('Depo Stoku', Icons.inventory_2_rounded), ('Sevkiyat', Icons.local_shipping_rounded),
-    ('SKT Takibi', Icons.event_busy_rounded), ('Satın Alma', Icons.shopping_cart_checkout_rounded),
-    ('İşlem Geçmişi', Icons.history_rounded),
-  ];
-  final products = [
-    ['🍗', 'Çıtır tavuk', '20 adet', '23.10.2026', 'Yakın SKT'],
-    ['🍗', 'Çıtır tavuk', '10 adet', '27.10.2026', 'Normal'],
-    ['🍞', 'Brioche ekmek', '120 adet', '24.10.2026', 'Yakın SKT'],
-    ['🍟', 'Patates kızartması', '65 kg', '18.01.2027', 'Normal'],
-    ['🧴', 'Burger sosu', '8 paket', '02.11.2026', 'Normal'],
-  ];
-  final orders = [
-    ['Kayseri Forum', 'SV-1048', 'Çıtır tavuk · 12 adet', 'Bekliyor'],
-    ['Talas Şubesi', 'SV-1047', 'Patates · 8 kg, Burger sosu · 3 paket', 'Hazırlanıyor'],
-    ['Kocasinan', 'SV-1046', 'Burger köftesi · 20 adet', 'Sevk edildi'],
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 900;
+  @override Widget build(BuildContext context){
+    if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
+    if(role==null)return _rolePicker();
+    final pages=depot?['Genel Bakış','Depo Stoku','Sipariş Talepleri','Hareketler']:['Genel Bakış','Ürünler','Siparişlerim'];
+    if(tab>=pages.length)tab=0;
     return Scaffold(
-      drawer: wide ? null : Drawer(child: _sidebar()),
-      body: Row(children: [
-        if (wide) SizedBox(width: 252, child: _sidebar()),
-        Expanded(child: Column(children: [
-          Container(height: 76, padding: const EdgeInsets.symmetric(horizontal: 22), color: Colors.white,
-            child: Row(children: [
-              if (!wide) Builder(builder: (ctx) => IconButton(onPressed: () => Scaffold.of(ctx).openDrawer(), icon: const Icon(Icons.menu_rounded))),
-              Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(pages[page].$1, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: navy)),
-                const Text('Stok, sipariş ve sevkiyat kontrol merkezi', style: TextStyle(fontSize: 11, color: muted)),
-              ])),
-              const Icon(Icons.notifications_none_rounded, color: navy, size: 25),
-              const SizedBox(width: 12),
-              Container(width: 38, height: 38, decoration: BoxDecoration(color: const Color(0xFFE3F8F1), borderRadius: BorderRadius.circular(13)), child: const Icon(Icons.person_rounded, color: Color(0xFF168D71))),
-            ])),
-          Expanded(child: _content()),
-        ])),
-      ]),
-    );
+      appBar:AppBar(backgroundColor:Colors.white,surfaceTintColor:Colors.white,title:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(pages[tab],style:const TextStyle(color:navy,fontSize:18,fontWeight:FontWeight.w900)),
+        Text(depot?'Depocu çalışma alanı · Yerel kayıt':'Mağaza çalışma alanı · Yerel kayıt',style:const TextStyle(color:muted,fontSize:11)),
+      ]),actions:[
+        PopupMenuButton<String>(tooltip:'Çalışma alanı',onSelected:(v){setState((){role=v;tab=0;});},itemBuilder:(_)=>const[
+          PopupMenuItem(value:'magaza',child:Text('Mağaza ekranı')),PopupMenuItem(value:'depo',child:Text('Depocu ekranı'))],icon:const Icon(Icons.swap_horiz)),
+        const SizedBox(width:8)]),
+      body:IndexedStack(index:tab,children:[_dashboard(),depot?_stockPage():_storeProducts(),depot?_requestsPage():_storeOrders(),if(depot)_movementsPage()]),
+      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:depot?const[
+        NavigationDestination(icon:Icon(Icons.dashboard_outlined),label:'Özet'),NavigationDestination(icon:Icon(Icons.inventory_2_outlined),label:'Depo'),
+        NavigationDestination(icon:Icon(Icons.assignment_outlined),label:'Talepler'),NavigationDestination(icon:Icon(Icons.history),label:'Hareketler')]:const[
+        NavigationDestination(icon:Icon(Icons.dashboard_outlined),label:'Özet'),NavigationDestination(icon:Icon(Icons.inventory_2_outlined),label:'Ürünler'),NavigationDestination(icon:Icon(Icons.receipt_long_outlined),label:'Siparişler')]),
+      floatingActionButton:depot&&tab==1?FloatingActionButton.extended(onPressed:_addProduct,icon:const Icon(Icons.add),label:const Text('Ürün ekle')):
+        (!depot&&tab==1&&products.isNotEmpty?FloatingActionButton.extended(onPressed:_createOrder,icon:const Icon(Icons.add_shopping_cart),label:const Text('Sipariş oluştur')):null));
   }
-
-  Widget _sidebar() => Container(color: deep, child: SafeArea(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Padding(padding: const EdgeInsets.fromLTRB(22, 24, 18, 30), child: Row(children: [
-      ClipRRect(borderRadius: BorderRadius.circular(13), child: SvgPicture.asset('assets/sevktakip-logo.svg', width: 44, height: 44)),
-      const SizedBox(width: 12),
-      const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('SEVKTAKİP', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
-        SizedBox(height: 3), Text('DEPO YÖNETİM SİSTEMİ', style: TextStyle(color: Color(0xFF93A4BD), fontSize: 9, letterSpacing: 1)),
-      ]),
-    ])),
-    const Padding(padding: EdgeInsets.fromLTRB(22, 0, 22, 10), child: Text('ÇALIŞMA ALANI', style: TextStyle(color: Color(0xFF74869F), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.4))),
-    ...List.generate(pages.length, (i) => Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-        selected: page == i, selectedTileColor: const Color(0xFF223955),
-        leading: Icon(pages[i].$2, color: page == i ? mint : const Color(0xFF93A4BD), size: 20),
-        title: Text(pages[i].$1, style: TextStyle(color: page == i ? Colors.white : const Color(0xFFB4C0D1), fontSize: 13, fontWeight: page == i ? FontWeight.w700 : FontWeight.w500)),
-        onTap: () { setState(() => page = i); if (MediaQuery.sizeOf(context).width < 900) Navigator.maybePop(context); },
-      ),
-    )),
-    const Spacer(),
-    Container(margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFF172A45), borderRadius: BorderRadius.circular(16)),
-      child: const Row(children: [Icon(Icons.warehouse_rounded, color: mint), SizedBox(width: 10), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Merkez Depo', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)), SizedBox(height: 3), Text('Demo çalışma alanı', style: TextStyle(color: Color(0xFF93A4BD), fontSize: 10))])]),
-    ),
-  ])));
-
-  Widget _content() {
-    if (page == 2 || page == 4) return _listPage(page == 2 ? 'Depo stoku' : 'SKT takip merkezi', page == 2 ? 'Ürün stokları SKT tarihine göre ayrı tutulur.' : 'Yaklaşan son kullanma tarihleri önceliklidir.', products.where((p) => page == 2 || p[4] == 'Yakın SKT').toList());
-    if (page == 1 || page == 3 || page == 6) return _orderPage();
-    if (page == 5) return _purchasePage();
-    return _dashboard();
+  Widget _rolePicker()=>Scaffold(body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:440),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    Container(width:84,height:84,decoration:BoxDecoration(color:deep,borderRadius:BorderRadius.circular(25)),child:const Icon(Icons.warehouse_rounded,color:mint,size:44)),
+    const SizedBox(height:22),const Text('SEVKTAKİP',style:TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:navy,letterSpacing:1.4)),
+    const SizedBox(height:8),const Text('Depo ve mağaza malzeme takibi',style:TextStyle(color:muted)),const SizedBox(height:28),
+    _roleCard('Mağaza','Depodan ürün iste ve taleplerini takip et.',Icons.storefront_rounded,()=>setState(()=>role='magaza')),
+    const SizedBox(height:14),_roleCard('Depocu','Stokları yönet, talepleri onayla ve stok düşümünü yap.',Icons.inventory_2_rounded,()=>setState(()=>role='depo')),
+    const SizedBox(height:22),const Text('Yerel sürüm: kayıtlar yalnızca bu cihazda saklanır. Başka telefonlarla paylaşılmaz.',textAlign:TextAlign.center,style:TextStyle(color:muted,fontSize:12,height:1.5)),
+  ]))))));
+  Widget _roleCard(String title,String subtitle,IconData icon,VoidCallback onTap)=>Card(color:Colors.white,elevation:0,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18),side:const BorderSide(color:Color(0xFFE5EAF1))),child:InkWell(borderRadius:BorderRadius.circular(18),onTap:onTap,child:Padding(padding:const EdgeInsets.all(18),child:Row(children:[
+    Container(width:52,height:52,decoration:BoxDecoration(color:const Color(0xFFE3F8F1),borderRadius:BorderRadius.circular(15)),child:Icon(icon,color:const Color(0xFF168D71),size:27)),const SizedBox(width:15),
+    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(color:navy,fontSize:17,fontWeight:FontWeight.w800)),const SizedBox(height:4),Text(subtitle,style:const TextStyle(color:muted,fontSize:12,height:1.4))])),
+    const Icon(Icons.arrow_forward_ios,size:16,color:muted)]))));
+  Widget _dashboard(){
+    final pending=orders.where((o)=>o['status']=='Bekliyor').length, approved=orders.where((o)=>o['status']=='Onaylandı').length;
+    final low=products.where((p)=>(p['stock'] as num)<=(p['minimum'] as num)).length;
+    return ListView(padding:const EdgeInsets.all(18),children:[
+      Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(gradient:const LinearGradient(colors:[navy,Color(0xFF234B68)]),borderRadius:BorderRadius.circular(22)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('DEPO OPERASYONLARI',style:TextStyle(color:mint,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:1.5)),const SizedBox(height:12),
+        Text(depot?'Stok ve talepler kontrolünde.':'İhtiyacın olan malzemeyi iste.',style:const TextStyle(color:Colors.white,fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(height:8),
+        Text(depot?'Mağazadan gelen talepleri incele ve onayla.':'Ürünleri seç, miktarları gir ve talebini gönder.',style:const TextStyle(color:Colors.white70,fontSize:13))])),
+      const SizedBox(height:16),GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:2,crossAxisSpacing:12,mainAxisSpacing:12,childAspectRatio:1.4,children:[
+        _metric('Ürün çeşidi','${products.length}',Icons.inventory_2,const Color(0xFFE6EDFF),const Color(0xFF4D69C8)),
+        _metric(depot?'Bekleyen talep':'Siparişlerim',depot?'${pending}':'${orders.length}',Icons.receipt_long,const Color(0xFFFFEFD8),const Color(0xFFBD7A19)),
+        _metric('Kritik stok','${low}',Icons.warning_amber_rounded,const Color(0xFFFFE4E4),const Color(0xFFD44B55)),
+        _metric('Onaylanan','${approved}',Icons.check_circle_outline,const Color(0xFFDDF7EF),const Color(0xFF168D71)]),
+      const SizedBox(height:20),_heading(depot?'Son talepler':'Son siparişler'),
+      if(orders.isEmpty)_empty('Henüz sipariş yok',depot?'Mağazadan talep geldiğinde burada görünür.':'Ürünler bölümünden yeni bir talep oluştur.'),
+      ...orders.reversed.take(5).map(_orderCard),
+      if(depot)...[const SizedBox(height:16),_heading('Kritik stoklar'),...products.where((p)=>(p['stock'] as num)<=(p['minimum'] as num)).map(_productTile)]]);
   }
+  Widget _stockPage()=>Column(children:[
+    Padding(padding:const EdgeInsets.fromLTRB(16,14,16,8),child:TextField(controller:search,onChanged:(_)=>setState(()=>{}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Ürün ara',isDense:true))),
+    Expanded(child:products.isEmpty?_empty('Henüz ürün eklenmedi','“Ürün ekle” düğmesiyle depo ürünlerini tanımla.'):ListView(padding:const EdgeInsets.fromLTRB(16,4,16,90),children:products.where(_matches).map((p)=>_productTile(p,editable:true)).toList()))]);
+  Widget _storeProducts()=>Column(children:[
+    Padding(padding:const EdgeInsets.fromLTRB(16,14,16,8),child:TextField(controller:search,onChanged:(_)=>setState(()=>{}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Ürün ara',isDense:true))),
+    Expanded(child:products.isEmpty?_empty('Ürün listesi boş','Ürünler bu cihazda depocu tarafından eklendiğinde görünür. Yerel sürümde telefonlar arası paylaşım yoktur.'):ListView(padding:const EdgeInsets.fromLTRB(16,4,16,90),children:products.where(_matches).map(_productTile).toList()))]);
+  bool _matches(Map<String,dynamic> p)=>p['name'].toString().toLowerCase().contains(search.text.toLowerCase())||p['code'].toString().toLowerCase().contains(search.text.toLowerCase());
+  Widget _requestsPage(){
+    final waiting=orders.where((o)=>o['status']=='Bekliyor').toList().reversed.toList(),done=orders.where((o)=>o['status']!='Bekliyor').toList().reversed.toList();
+    return ListView(padding:const EdgeInsets.all(16),children:[_heading('Onay bekleyen talepler'),const SizedBox(height:8),if(waiting.isEmpty)_empty('Bekleyen talep yok','Mağazadan yeni talep geldiğinde burada görünür.'),...waiting.map((o)=>_orderCard(o,actions:true)),if(done.isNotEmpty)...[const SizedBox(height:18),_heading('İşlem geçmişi'),...done.map(_orderCard)]]);
+  }
+  Widget _storeOrders()=>ListView(padding:const EdgeInsets.all(16),children:[FilledButton.icon(onPressed:products.isEmpty?null:_createOrder,icon:const Icon(Icons.add),label:const Text('Yeni ürün talebi oluştur')),const SizedBox(height:14),if(orders.isEmpty)_empty('Henüz siparişin yok','Ürün talebi oluşturduğunda durumunu burada izleyebilirsin.'),...orders.reversed.map(_orderCard)]);
+  Widget _movementsPage(){
+    final done=orders.where((o)=>o['status']=='Onaylandı').toList().reversed.toList();
+    return ListView(padding:const EdgeInsets.all(16),children:[_heading('Stok hareketleri'),if(done.isEmpty)_empty('Henüz stok hareketi yok','Onaylanan siparişler burada listelenir.'),...done.map((o)=>Card(color:Colors.white,elevation:0,child:ListTile(leading:const CircleAvatar(backgroundColor:Color(0xFFDDF7EF),child:Icon(Icons.outbox,color:Color(0xFF168D71))),title:Text('Talep #${o['id']} onaylandı'),subtitle:Text('${(o['items'] as List).length} ürün · stoktan düşüldü'),trailing:Text(_date(o['updatedAt']?.toString()),style:const TextStyle(fontSize:10,color:muted)))))]);
+  }
+  Widget _productTile(Map<String,dynamic> p,{bool editable=false}){
+    final stock=(p['stock'] as num).toDouble(),min=(p['minimum'] as num).toDouble(),low=stock<=min;
+    return Card(color:Colors.white,elevation:0,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(15),side:const BorderSide(color:Color(0xFFE9EDF4))),child:ListTile(
+      leading:Container(width:44,height:44,decoration:BoxDecoration(color:const Color(0xFFEAF2F6),borderRadius:BorderRadius.circular(12)),child:const Icon(Icons.inventory_2_outlined,color:navy)),
+      title:Text(p['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800,color:navy)),
+      subtitle:Text('${p['code']} · Minimum: ${_qty(min)} ${p['unit']}',style:const TextStyle(color:muted,fontSize:11)),
+      trailing:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.end,children:[Text('${_qty(stock)} ${p['unit']}',style:const TextStyle(fontWeight:FontWeight.w900,color:navy)),Text(low?'Stok az':'Stokta',style:TextStyle(fontSize:10,color:low?Colors.red:Colors.green))]),
+      onTap:editable?()=>_stockAdjustment(p):null));
+  }
+  Widget _orderCard(Map<String,dynamic> o,{bool actions=false}){
+    final status=o['status'].toString(),items=(o['items'] as List).map((x)=>Map<String,dynamic>.from(x as Map)).toList();
+    final color=status=='Onaylandı'?Colors.green:status=='Reddedildi'?Colors.red:navy;
+    return Card(color:Colors.white,elevation:0,margin:const EdgeInsets.only(bottom:10),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16),side:const BorderSide(color:Color(0xFFE9EDF4))),child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Row(children:[Expanded(child:Text('Talep #${o['id']}',style:const TextStyle(fontWeight:FontWeight.w900,color:navy,fontSize:15))),Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),decoration:BoxDecoration(color:color.withValues(alpha:.10),borderRadius:BorderRadius.circular(20)),child:Text(status,style:TextStyle(color:color,fontSize:11,fontWeight:FontWeight.w800)))]),
+      const SizedBox(height:8),...items.map((i)=>Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Row(children:[Expanded(child:Text(i['name'].toString(),style:const TextStyle(fontSize:13))),Text('${_qty((i['quantity'] as num).toDouble())} ${i['unit']}',style:const TextStyle(fontWeight:FontWeight.w800))]))),
+      if((o['note']??'').toString().isNotEmpty)Text('Not: ${o['note']}',style:const TextStyle(color:muted,fontSize:12)),
+      const SizedBox(height:8),Text('Oluşturulma: ${_date(o['createdAt']?.toString())}',style:const TextStyle(color:muted,fontSize:10)),
+      if(actions&&status=='Bekliyor')...[
+        const SizedBox(height:12),Row(children:[
+          Expanded(child:OutlinedButton.icon(onPressed:()=>_rejectOrder(o),icon:const Icon(Icons.close),label:const Text('Reddet'),style:OutlinedButton.styleFrom(foregroundColor:Colors.red))),
+          const SizedBox(width:10),Expanded(child:FilledButton.icon(onPressed:()=>_approveOrder(o),icon:const Icon(Icons.check),label:const Text('Onayla')))])]]))));
+  }
+  Widget _metric(String label,String value,IconData icon,Color bg,Color fg)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(17),border:Border.all(color:const Color(0xFFE9EDF4))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Container(width:38,height:38,decoration:BoxDecoration(color:bg,borderRadius:BorderRadius.circular(11)),child:Icon(icon,color:fg)),const Spacer(),Text(value,style:const TextStyle(color:navy,fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:3),Text(label,style:const TextStyle(color:muted,fontSize:11))]));
+  Widget _heading(String s)=>Text(s,style:const TextStyle(color:navy,fontSize:17,fontWeight:FontWeight.w900));
+  Widget _empty(String title,String detail)=>Container(margin:const EdgeInsets.symmetric(vertical:8),padding:const EdgeInsets.all(24),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(17),border:Border.all(color:const Color(0xFFE9EDF4))),child:Column(children:[const Icon(Icons.inventory_2_outlined,size:34,color:muted),const SizedBox(height:10),Text(title,style:const TextStyle(color:navy,fontWeight:FontWeight.w800)),const SizedBox(height:5),Text(detail,textAlign:TextAlign.center,style:const TextStyle(color:muted,fontSize:12,height:1.5))]));
 
-  Widget _dashboard() => SingleChildScrollView(padding: const EdgeInsets.all(26), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Container(width: double.infinity, padding: const EdgeInsets.all(26), decoration: BoxDecoration(gradient: const LinearGradient(colors: [navy, Color(0xFF234B68)]), borderRadius: BorderRadius.circular(22)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: mint.withValues(alpha: .16), borderRadius: BorderRadius.circular(30)), child: const Text('DEPO OPERASYONLARI', style: TextStyle(color: mint, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.4))),
-        const SizedBox(height: 14), const Text('Günaydın, depo ekibi 👋', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8), const Text('Siparişleri hazırlayın, stokları takip edin ve SKT yaklaşan ürünleri kontrol edin.', style: TextStyle(color: Color(0xFFD0DCE8), fontSize: 12)),
-        const SizedBox(height: 18), FilledButton.icon(onPressed: () => setState(() => page = 1), icon: const Icon(Icons.arrow_forward_rounded), label: const Text('Siparişlere git'), style: FilledButton.styleFrom(backgroundColor: mint, foregroundColor: deep)),
-      ])),
-    const SizedBox(height: 22),
-    LayoutBuilder(builder: (context, c) {
-      final cols = c.maxWidth > 1000 ? 4 : c.maxWidth > 600 ? 2 : 1;
-      return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: cols == 1 ? 3.0 : 1.45, children: [
-        _metric('Stok kayıtları', products.length.toString(), Icons.inventory_2_rounded, const Color(0xFFE6EDFF), const Color(0xFF4D69C8)),
-        _metric('Bekleyen sipariş', orders.where((o) => o[3] == 'Bekliyor').length.toString(), Icons.receipt_long_rounded, const Color(0xFFFFEFD8), const Color(0xFFBD7A19)),
-        _metric('Yaklaşan SKT', products.where((p) => p[4] == 'Yakın SKT').length.toString(), Icons.event_busy_rounded, const Color(0xFFFFE4E4), const Color(0xFFD44B55)),
-        _metric('Satın alma uyarısı', '2', Icons.shopping_cart_checkout_rounded, const Color(0xFFDDF7EF), const Color(0xFF168D71)),
-      ]);
-    }),
-    const SizedBox(height: 22), _panel('Son siparişler', TextButton(onPressed: () => setState(() => page = 1), child: const Text('Tüm siparişler')), Column(children: orders.map(_orderRow).toList())),
-    const SizedBox(height: 16), _panel('SKT uyarıları', TextButton(onPressed: () => setState(() => page = 4), child: const Text('Tümünü gör')), Column(children: products.where((p) => p[4] == 'Yakın SKT').map(_productRow).toList())),
-  ]));
-
-  Widget _metric(String label, String value, IconData icon, Color bg, Color fg) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE9EDF4))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Container(width: 40, height: 40, decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: fg)),
-    const Spacer(), Text(value, style: const TextStyle(color: navy, fontSize: 26, fontWeight: FontWeight.w900)), const SizedBox(height: 4), Text(label, style: const TextStyle(color: muted, fontSize: 11)),
-  ]));
-  Widget _panel(String title, Widget? action, Widget child) => Container(width: double.infinity, padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE9EDF4))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Row(children: [Expanded(child: Text(title, style: const TextStyle(color: navy, fontWeight: FontWeight.w800, fontSize: 14))), if (action != null) action]),
-    const SizedBox(height: 8), child,
-  ]));
-  Widget _listPage(String title, String subtitle, List<List<String>> items) => SingleChildScrollView(padding: const EdgeInsets.all(26), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(title, style: const TextStyle(color: navy, fontSize: 23, fontWeight: FontWeight.w900)), const SizedBox(height: 7), Text(subtitle, style: const TextStyle(color: muted, fontSize: 12)),
-    const SizedBox(height: 20), _panel('Ürün kayıtları', null, Column(children: items.map(_productRow).toList())),
-  ]));
-  Widget _productRow(List<String> p) => ListTile(contentPadding: const EdgeInsets.symmetric(vertical: 4), leading: Container(width: 44, height: 44, alignment: Alignment.center, decoration: BoxDecoration(color: const Color(0xFFEAF2F6), borderRadius: BorderRadius.circular(13)), child: Text(p[0], style: const TextStyle(fontSize: 21))), title: Text(p[1], style: const TextStyle(fontWeight: FontWeight.w800, color: navy, fontSize: 12)), subtitle: Text(p[2] + ' · SKT ' + p[3], style: const TextStyle(color: muted, fontSize: 11)), trailing: _pill(p[4], p[4] == 'Yakın SKT' ? const Color(0xFFFFE7E7) : const Color(0xFFDDF7EF), p[4] == 'Yakın SKT' ? const Color(0xFFC64C55) : const Color(0xFF168D71)));
-  Widget _orderPage() => SingleChildScrollView(padding: const EdgeInsets.all(26), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const Text('Şube siparişleri ve sevkiyat', style: TextStyle(color: navy, fontSize: 23, fontWeight: FontWeight.w900)), const SizedBox(height: 7), const Text('Şube siparişlerini izle ve sevkiyat durumunu güncelle.', style: TextStyle(color: muted, fontSize: 12)),
-    const SizedBox(height: 20), _panel('Sipariş kuyruğu', null, Column(children: orders.map(_orderRow).toList())),
-    const SizedBox(height: 16), _panel('Sevkiyat güvenliği', null, const Text('Ürün miktarı ve hangi SKT kaydından çıktığı ayrı ayrı tutulmalıdır. Bu ilk sürüm demo verileriyle çalışır; gerçek stok düşümü henüz bağlı değildir.', style: TextStyle(color: muted, height: 1.6))),
-  ]));
-  Widget _orderRow(List<String> o) => ListTile(contentPadding: const EdgeInsets.symmetric(vertical: 4), leading: const CircleAvatar(backgroundColor: Color(0xFFE3F8F1), child: Icon(Icons.storefront_rounded, color: Color(0xFF168D71))), title: Text(o[0], style: const TextStyle(fontWeight: FontWeight.w800, color: navy, fontSize: 12)), subtitle: Text(o[1] + ' · ' + o[2], style: const TextStyle(color: muted, fontSize: 11)), trailing: _pill(o[3], o[3] == 'Sevk edildi' ? const Color(0xFFDDF7EF) : const Color(0xFFE6EDFF), o[3] == 'Sevk edildi' ? const Color(0xFF168D71) : const Color(0xFF4D69C8)));
-  Widget _purchasePage() => SingleChildScrollView(padding: const EdgeInsets.all(26), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const Text('Satın alma listesi', style: TextStyle(color: navy, fontSize: 23, fontWeight: FontWeight.w900)), const SizedBox(height: 7), const Text('Minimum stok altındaki ürünler ana şirkete sipariş önerisi oluşturur.', style: TextStyle(color: muted, fontSize: 12)),
-    const SizedBox(height: 20), _panel('Önerilen alımlar', null, const Column(children: [
-      ListTile(leading: Icon(Icons.shopping_cart_outlined, color: Color(0xFFC64C55)), title: Text('Burger sosu'), subtitle: Text('8 paket mevcut · Minimum 12 paket')),
-      ListTile(leading: Icon(Icons.shopping_cart_outlined, color: Color(0xFFC64C55)), title: Text('Baharat karışımı'), subtitle: Text('3 paket mevcut · Minimum 8 paket')),
-    ])),
-  ]));
-  Widget _pill(String text, Color bg, Color fg) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6), decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)), child: Text(text, style: TextStyle(color: fg, fontSize: 9, fontWeight: FontWeight.w800)));
-}
-
-class _AppGate extends StatelessWidget {
-  const _AppGate();
-  @override
-  Widget build(BuildContext context) => StreamBuilder<AuthState>(
-    stream: Supabase.instance.client.auth.onAuthStateChange,
-    builder: (context, snapshot) {
-      if (Supabase.instance.client.auth.currentSession == null) return const SignInPage();
-      return const LiveHomePage();
-    },
-  );
+  Future<void> _addProduct() async {
+    final name=TextEditingController(),code=TextEditingController(),unit=TextEditingController(text:'adet'),stock=TextEditingController(text:'0'),minimum=TextEditingController(text:'0');final key=GlobalKey<FormState>();
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Yeni ürün ekle'),content:SizedBox(width:420,child:Form(key:key,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+      TextFormField(controller:name,autofocus:true,decoration:const InputDecoration(labelText:'Ürün adı *'),validator:(v)=>(v==null||v.trim().isEmpty)?'Ürün adı gerekli':null),
+      const SizedBox(height:10),TextFormField(controller:code,decoration:const InputDecoration(labelText:'Ürün kodu (isteğe bağlı)')),
+      const SizedBox(height:10),TextFormField(controller:unit,decoration:const InputDecoration(labelText:'Birim (adet, kg, koli...)'),validator:(v)=>(v==null||v.trim().isEmpty)?'Birim gerekli':null),
+      const SizedBox(height:10),TextFormField(controller:stock,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Başlangıç stoğu'),validator:_validateNumber),
+      const SizedBox(height:10),TextFormField(controller:minimum,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Minimum stok uyarısı'),validator:_validateNumber)]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('İptal')),FilledButton(onPressed:(){if(key.currentState!.validate())Navigator.pop(ctx,true);},child:const Text('Kaydet'))]));
+    if(ok==true){
+      if(products.any((p)=>p['name'].toString().toLowerCase()==name.text.trim().toLowerCase())){_toast('Bu ürün zaten kayıtlı.',error:true);}
+      else{products.add({'id':DateTime.now().microsecondsSinceEpoch,'name':name.text.trim(),'code':code.text.trim().isEmpty?'UR-${products.length+1}':code.text.trim(),'unit':unit.text.trim(),'stock':_number(stock.text),'minimum':_number(minimum.text)});await _save();if(mounted)setState(()=>{});_toast('Ürün kaydedildi.');}
+    }
+    name.dispose();code.dispose();unit.dispose();stock.dispose();minimum.dispose();
+  }
+  Future<void> _stockAdjustment(Map<String,dynamic> p) async {
+    final qty=TextEditingController();final key=GlobalKey<FormState>();
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:Text('${p['name']} · Stok girişi'),content:Form(key:key,child:TextFormField(controller:qty,autofocus:true,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:'Eklenecek miktar (${p['unit']})'),validator:_validatePositive)),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('İptal')),FilledButton(onPressed:(){if(key.currentState!.validate())Navigator.pop(ctx,true);},child:const Text('Stoğa ekle'))]));
+    if(ok==true){p['stock']=(p['stock'] as num).toDouble()+_number(qty.text);await _save();if(mounted)setState(()=>{});_toast('Stok güncellendi.');}qty.dispose();
+  }
+  Future<void> _createOrder() async {
+    if(products.isEmpty)return;
+    final quantities=<int,TextEditingController>{for(final p in products)p['id'] as int:TextEditingController(text:'0')};final note=TextEditingController();final key=GlobalKey<FormState>();
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Mağaza ürün talebi'),content:SizedBox(width:440,child:Form(key:key,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+      const Align(alignment:Alignment.centerLeft,child:Text('İstenen miktarları gir. 0 olan ürünler eklenmez.',style:TextStyle(color:muted,fontSize:12))),const SizedBox(height:12),
+      ...products.map((p)=>Padding(padding:const EdgeInsets.only(bottom:10),child:Row(children:[
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(p['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),Text('Kayıtlı stok: ${_qty((p['stock'] as num).toDouble())} ${p['unit']}',style:const TextStyle(color:muted,fontSize:11))])),
+        SizedBox(width:94,child:TextFormField(controller:quantities[p['id'] as int],keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Miktar',isDense:true),validator:(v)=>_number(v??'0')<0?'Geçersiz':null))]))),
+      TextField(controller:note,decoration:const InputDecoration(labelText:'Not (isteğe bağlı)'))]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('İptal')),FilledButton(onPressed:(){if(key.currentState!.validate())Navigator.pop(ctx,true);},child:const Text('Talep gönder'))]));
+    if(ok==true){
+      final items=<Map<String,dynamic>>[];for(final p in products){final q=_number(quantities[p['id'] as int]!.text);if(q>0)items.add({'productId':p['id'],'name':p['name'],'unit':p['unit'],'quantity':q});}
+      if(items.isEmpty){_toast('En az bir ürün için miktar gir.',error:true);}
+      else{orders.add({'id':DateTime.now().millisecondsSinceEpoch,'status':'Bekliyor','items':items,'note':note.text.trim(),'createdAt':DateTime.now().toIso8601String()});await _save();if(mounted)setState(()=>tab=2);_toast('Talep bu cihaza kaydedildi.');}
+    }
+    for(final c in quantities.values){c.dispose();}note.dispose();
+  }
+  Future<void> _approveOrder(Map<String,dynamic> o) async {
+    if(o['status']!='Bekliyor')return;
+    final items=(o['items'] as List).map((x)=>Map<String,dynamic>.from(x as Map)).toList();
+    for(final item in items){final matches=products.where((p)=>p['id']==item['productId']);if(matches.isEmpty||(matches.first['stock'] as num).toDouble()<(item['quantity'] as num).toDouble()){_toast('Yetersiz stok: ${item['name']}. Stok girişinden sonra tekrar dene.',error:true);return;}}
+    final confirm=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Siparişi onayla?'),content:const Text('Onaylandığında istenen miktarlar stoktan düşülecek. Aynı sipariş ikinci kez düşülmez.'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Vazgeç')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Onayla ve stok düş'))]));
+    if(confirm!=true)return;
+    for(final item in items){final p=products.firstWhere((p)=>p['id']==item['productId']);p['stock']=(p['stock'] as num).toDouble()-(item['quantity'] as num).toDouble();}
+    o['status']='Onaylandı';o['updatedAt']=DateTime.now().toIso8601String();await _save();if(mounted)setState(()=>{});_toast('Sipariş onaylandı, stok güncellendi.');
+  }
+  Future<void> _rejectOrder(Map<String,dynamic> o) async {
+    final yes=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Talep reddedilsin mi?'),content:const Text('Reddedilen talepte stok değişmez.'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Vazgeç')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Talebi reddet'))]));
+    if(yes==true){o['status']='Reddedildi';o['updatedAt']=DateTime.now().toIso8601String();await _save();if(mounted)setState(()=>{});_toast('Talep reddedildi.');}
+  }
+  String? _validateNumber(String? v)=>v==null||v.trim().isEmpty||_number(v)<0?'0 veya daha büyük sayı gir':null;
+  String? _validatePositive(String? v)=>v==null||v.trim().isEmpty||_number(v)<=0?'0’dan büyük sayı gir':null;
+  double _number(String s)=>double.tryParse(s.trim().replaceAll(',','.'))??-1;
+  String _qty(double n)=>n==n.roundToDouble()?n.toInt().toString():n.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'),'').replaceFirst(RegExp(r'\.$'),'');
+  String _date(String? s){if(s==null)return '';final d=DateTime.tryParse(s);if(d==null)return s;return '${d.day.toString().padLeft(2,'0')}.${d.month.toString().padLeft(2,'0')}.${d.year}';}
 }
