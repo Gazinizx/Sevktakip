@@ -1,11 +1,14 @@
 name: Build SevkTakip
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
+
 concurrency:
   group: sevktakip-build-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -15,32 +18,17 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter create . --platforms=android,ios,windows
+      - run: flutter create . --platforms=android,ios
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: sevktakip-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - run: flutter create . --platforms=android,ios,windows
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
-      - run: flutter build windows --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sevktakip-windows-release
-          path: build/windows/x64/runner/Release/
+          if-no-files-found: error
+
   ios:
     runs-on: macos-latest
     steps:
@@ -49,12 +37,13 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter create . --platforms=android,ios,windows
+      - run: flutter create . --platforms=android,ios
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      - run: flutter build ios --release --no-codesign
       - uses: actions/upload-artifact@v4
         with:
-          name: sevktakip-ios-app-unsigned
+          name: sevktakip-ios-unsigned-app
           path: build/ios/iphoneos/Runner.app/
+          if-no-files-found: error
