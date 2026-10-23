@@ -1,1022 +1,191 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-const _ink = Color(0xFF172B4D);
-const _green = Color(0xFF16856B);
-const _paper = Color(0xFFF4F6FA);
+const ink = Color(0xFF172B4D);
+const green = Color(0xFF16856B);
+const paper = Color(0xFFF4F6FA);
+const supabaseUrl = 'https://zazbwooscaiahzrgpnkh.supabase.co';
+const supabaseKey = 'sb_publishable_cN341boWg-G4gghy1d4I7g_P1dylGZh';
+final db = Supabase.instance.client;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseKey);
   runApp(const SevkTakipApp());
 }
 
 class SevkTakipApp extends StatelessWidget {
   const SevkTakipApp({super.key});
-
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'SevkTakip',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          scaffoldBackgroundColor: _paper,
-          colorScheme: ColorScheme.fromSeed(seedColor: _ink),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.white,
-            foregroundColor: _ink,
-            elevation: 0,
-          ),
-          inputDecorationTheme: const InputDecorationTheme(
-            border: OutlineInputBorder(),
-          ),
-        ),
-        home: const WorkAreaScreen(),
-      );
+    title: 'SevkTakip', debugShowCheckedModeBanner: false,
+    theme: ThemeData(useMaterial3: true, scaffoldBackgroundColor: paper,
+      colorScheme: ColorScheme.fromSeed(seedColor: ink),
+      appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: ink, elevation: 0),
+      inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder())),
+    home: const SessionGate());
 }
 
-class StockItem {
-  StockItem({
-    required this.id,
-    required this.name,
-    required this.unit,
-    required this.quantity,
-    required this.minimum,
-  });
-
-  final String id;
-  final String name;
-  final String unit;
-  int quantity;
-  final int minimum;
-
-  Map<String, Object> toJson() => {
-        'id': id,
-        'name': name,
-        'unit': unit,
-        'quantity': quantity,
-        'minimum': minimum,
-      };
-
-  factory StockItem.fromJson(Map<String, dynamic> json) => StockItem(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        unit: json['unit'] as String,
-        quantity: (json['quantity'] as num).toInt(),
-        minimum: (json['minimum'] as num).toInt(),
-      );
+class SessionGate extends StatelessWidget {
+  const SessionGate({super.key});
+  @override
+  Widget build(BuildContext context) => StreamBuilder<AuthState>(
+    stream: db.auth.onAuthStateChange,
+    builder: (context, snapshot) => db.auth.currentSession == null ? const AuthScreen() : const HomeScreen());
 }
 
-class OrderLine {
-  const OrderLine({required this.productId, required this.quantity});
-
-  final String productId;
-  final int quantity;
-
-  Map<String, Object> toJson() => {
-        'productId': productId,
-        'quantity': quantity,
-      };
-
-  factory OrderLine.fromJson(Map<String, dynamic> json) => OrderLine(
-        productId: json['productId'] as String,
-        quantity: (json['quantity'] as num).toInt(),
-      );
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
 }
-
-class StockOrder {
-  StockOrder({
-    required this.id,
-    required this.createdAt,
-    required this.note,
-    required this.lines,
-    this.status = 'Bekliyor',
-  });
-
-  final String id;
-  final DateTime createdAt;
-  final String note;
-  final List<OrderLine> lines;
-  String status;
-
-  Map<String, Object> toJson() => {
-        'id': id,
-        'createdAt': createdAt.toIso8601String(),
-        'note': note,
-        'status': status,
-        'lines': lines.map((line) => line.toJson()).toList(),
-      };
-
-  factory StockOrder.fromJson(Map<String, dynamic> json) => StockOrder(
-        id: json['id'] as String,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        note: json['note'] as String? ?? '',
-        status: json['status'] as String? ?? 'Bekliyor',
-        lines: (json['lines'] as List<dynamic>)
-            .map((line) => OrderLine.fromJson(
-                Map<String, dynamic>.from(line as Map)))
-            .toList(),
-      );
-}
-
-class LocalInventory {
-  static const _stockKey = 'sevktakip_clean_stock_v1';
-  static const _orderKey = 'sevktakip_clean_orders_v1';
-
-  Future<List<StockItem>> loadStock() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_stockKey);
-    if (raw == null) {
-      return [
-        StockItem(id: 'demo_tavuk', name: 'Tavuk fileto', unit: 'koli', quantity: 8, minimum: 3),
-        StockItem(id: 'demo_patates', name: 'Patates', unit: 'koli', quantity: 12, minimum: 4),
-        StockItem(id: 'demo_burger_ekmegi', name: 'Burger ekmeği', unit: 'koli', quantity: 6, minimum: 2),
-        StockItem(id: 'demo_tenders', name: 'Tenders kaplama karışımı', unit: 'koli', quantity: 5, minimum: 2),
-        StockItem(id: 'demo_sos', name: 'Gurme sos', unit: 'koli', quantity: 4, minimum: 2),
-        StockItem(id: 'demo_ketcap', name: 'Ketçap', unit: 'koli', quantity: 7, minimum: 2),
-        StockItem(id: 'demo_mayonez', name: 'Mayonez', unit: 'koli', quantity: 7, minimum: 2),
-        StockItem(id: 'demo_icecek', name: 'Kutu içecek', unit: 'koli', quantity: 10, minimum: 3),
-        StockItem(id: 'demo_coleslaw', name: 'Coleslaw salata', unit: 'koli', quantity: 3, minimum: 2),
-        StockItem(id: 'demo_sogan', name: 'Soğan halkası', unit: 'koli', quantity: 4, minimum: 2),
-        StockItem(id: 'demo_mozzarella', name: 'Mozzarella sticks', unit: 'koli', quantity: 2, minimum: 2),
-        StockItem(id: 'demo_limonata', name: 'Limonata', unit: 'koli', quantity: 9, minimum: 3),
-      ];
-    }
+class _AuthScreenState extends State<AuthScreen> {
+  final email = TextEditingController();
+  final password = TextEditingController();
+  final name = TextEditingController();
+  bool signup = false, busy = false;
+  String? error;
+  @override
+  void dispose() { email.dispose(); password.dispose(); name.dispose(); super.dispose(); }
+  Future<void> submit() async {
+    setState(() { busy = true; error = null; });
     try {
-      return (jsonDecode(raw) as List<dynamic>)
-          .map((item) =>
-              StockItem.fromJson(Map<String, dynamic>.from(item as Map)))
-          .toList();
-    } catch (_) {
-      return [];
-    }
+      if (signup) {
+        final result = await db.auth.signUp(email: email.text.trim(), password: password.text, data: {'display_name': name.text.trim()});
+        if (result.session == null && mounted) error = 'Hesap oluşturuldu. E-posta doğrulaması gerekiyorsa gelen kutunu kontrol et.';
+      } else {
+        await db.auth.signInWithPassword(email: email.text.trim(), password: password.text);
+      }
+    } on AuthException catch (e) { error = e.message; }
+    catch (_) { error = 'Bağlantı kurulamadı. İnternet bağlantını kontrol et.'; }
+    if (mounted) setState(() { busy = false; });
   }
+  @override
+  Widget build(BuildContext context) => Scaffold(body: SafeArea(child: Center(child: SingleChildScrollView(
+    padding: const EdgeInsets.all(24), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const Icon(Icons.warehouse_rounded, size: 72, color: green), const SizedBox(height: 14),
+      const Text('SEVKTAKİP', textAlign: TextAlign.center, style: TextStyle(color: ink, fontSize: 28, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 8), const Text('Ortak depo ve mağaza stok yönetimi', textAlign: TextAlign.center), const SizedBox(height: 28),
+      if (signup) ...[TextField(controller: name, decoration: const InputDecoration(labelText: 'Ad soyad')), const SizedBox(height: 12)],
+      TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'E-posta')),
+      const SizedBox(height: 12), TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Şifre (en az 6 karakter)')),
+      if (error != null) ...[const SizedBox(height: 12), Text(error!, style: const TextStyle(color: Colors.red))],
+      const SizedBox(height: 18), FilledButton(onPressed: busy ? null : submit, child: Text(busy ? 'Bekleyin…' : signup ? 'Hesap oluştur' : 'Giriş yap')),
+      TextButton(onPressed: () => setState(() { signup = !signup; error = null; }), child: Text(signup ? 'Giriş yap' : 'Yeni hesap oluştur')),
+      const Text('Veriler ortak veritabanında tutulur; aynı hesapla giriş yaptığın cihazlarda görünür.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, fontSize: 12))
+    ]))))));
+}
 
-  Future<List<StockOrder>> loadOrders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_orderKey);
-    if (raw == null) return [];
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+class _HomeScreenState extends State<HomeScreen> {
+  List<Map<String,dynamic>> products = [], orders = [];
+  String role = 'magaza', displayName = '';
+  bool loading = true, busy = false;
+  int tab = 0;
+  bool get depot => role == 'depo';
+  @override
+  void initState() { super.initState(); load(); }
+  Future<void> load() async {
+    if (mounted) setState(() => loading = true);
     try {
-      return (jsonDecode(raw) as List<dynamic>)
-          .map((item) =>
-              StockOrder.fromJson(Map<String, dynamic>.from(item as Map)))
-          .toList();
-    } catch (_) {
-      return [];
-    }
+      final user = db.auth.currentUser!;
+      final profile = await db.from('profiles').select('role,display_name').eq('id', user.id).maybeSingle();
+      role = profile?['role'] as String? ?? 'magaza';
+      displayName = profile?['display_name'] as String? ?? '';
+      products = List<Map<String,dynamic>>.from(await db.from('products').select().order('name'));
+      orders = List<Map<String,dynamic>>.from(await db.from('orders').select('*,order_lines(*,products(name,unit))').order('created_at', ascending: false));
+    } catch (e) { if (mounted) message('Veriler alınamadı: ' + e.toString(), true); }
+    if (mounted) setState(() => loading = false);
   }
-
-  Future<void> save(List<StockItem> stock, List<StockOrder> orders) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _stockKey, jsonEncode(stock.map((item) => item.toJson()).toList()));
-    await prefs.setString(
-        _orderKey, jsonEncode(orders.map((order) => order.toJson()).toList()));
+  void message(String text, [bool error = false]) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: error ? Colors.red : ink));
+  Future<void> run(Future<void> Function() action) async {
+    if (busy) return; setState(() => busy = true);
+    try { await action(); await load(); }
+    catch (e) { if (mounted) message('İşlem tamamlanamadı: ' + e.toString(), true); }
+    if (mounted) setState(() => busy = false);
   }
-}
-
-class WorkAreaScreen extends StatefulWidget {
-  const WorkAreaScreen({super.key});
-
-  @override
-  State<WorkAreaScreen> createState() => _WorkAreaScreenState();
-}
-
-class _WorkAreaScreenState extends State<WorkAreaScreen> {
-  final _storage = LocalInventory();
-  final _searchController = TextEditingController();
-  List<StockItem> _stock = [];
-  List<StockOrder> _orders = [];
-  String? _role;
-  bool _loading = true;
-  int _tab = 0;
-
-  bool get _isDepot => _role == 'depo';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    final results = await Future.wait([
-      _storage.loadStock(),
-      _storage.loadOrders(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _stock = results[0] as List<StockItem>;
-      _orders = results[1] as List<StockOrder>;
-      _loading = false;
-    });
-  }
-
-  Future<void> _persist() => _storage.save(_stock, _orders);
-
-  void _message(String text, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(text),
-        backgroundColor: error ? Colors.red.shade700 : _ink,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(body: Center(child: Text('SevkTakip açılıyor…')));
-    }
-    if (_role == null) return _roleSelection();
-
-    final titles = _isDepot
-        ? const ['Genel Bakış', 'Depo Stoku', 'Talepler', 'Hareketler']
-        : const ['Genel Bakış', 'Ürünler', 'Siparişlerim'];
-    if (_tab >= titles.length) _tab = 0;
-
+    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    final titles = depot ? ['Genel Bakış','Depo Stoku','Talepler','Hareketler'] : ['Genel Bakış','Ürünler','Siparişlerim'];
+    if (tab >= titles.length) tab = 0;
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(titles[_tab],
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(_isDepot ? 'Depocu alanı' : 'Mağaza alanı',
-                style: const TextStyle(fontSize: 11, color: Colors.black54)),
-          ],
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Çalışma alanını değiştir',
-            onSelected: (value) => setState(() {
-              _role = value;
-              _tab = 0;
-            }),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'magaza', child: Text('Mağaza ekranı')),
-              PopupMenuItem(value: 'depo', child: Text('Depocu ekranı')),
-            ],
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          _dashboard(),
-          _isDepot ? _stockPage() : _storeProducts(),
-          _isDepot ? _requestsPage() : _storeOrders(),
-          if (_isDepot) _historyPage(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (index) => setState(() => _tab = index),
-        destinations: _isDepot
-            ? const [
-                NavigationDestination(
-                    icon: Icon(Icons.dashboard_outlined), label: 'Özet'),
-                NavigationDestination(
-                    icon: Icon(Icons.inventory_2_outlined), label: 'Stok'),
-                NavigationDestination(
-                    icon: Icon(Icons.assignment_outlined), label: 'Talepler'),
-                NavigationDestination(
-                    icon: Icon(Icons.history), label: 'Hareketler'),
-              ]
-            : const [
-                NavigationDestination(
-                    icon: Icon(Icons.dashboard_outlined), label: 'Özet'),
-                NavigationDestination(
-                    icon: Icon(Icons.inventory_2_outlined), label: 'Ürünler'),
-                NavigationDestination(
-                    icon: Icon(Icons.receipt_long_outlined),
-                    label: 'Siparişler'),
-              ],
-      ),
-      floatingActionButton: _isDepot && _tab == 1
-          ? FloatingActionButton.extended(
-              onPressed: _addProduct,
-              icon: const Icon(Icons.add),
-              label: const Text('Ürün ekle'),
-            )
-          : !_isDepot && _tab == 1 && _stock.isNotEmpty
-              ? FloatingActionButton.extended(
-                  onPressed: _createOrder,
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: const Text('Talep oluştur'),
-                )
-              : null,
-    );
+      appBar: AppBar(title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(titles[tab], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)), Text(displayName.isEmpty ? (depot ? 'Depocu alanı' : 'Mağaza alanı') : 'Merhaba, ' + displayName, style: const TextStyle(fontSize: 11, color: Colors.black54))]),
+        actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh)), IconButton(onPressed: () => db.auth.signOut(), icon: const Icon(Icons.logout))]),
+      body: IndexedStack(index: tab, children: [dashboard(), depot ? stockPage() : storePage(), depot ? requestsPage() : storeOrders(), if (depot) historyPage()]),
+      bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i),
+        destinations: depot ? const [NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Özet'), NavigationDestination(icon: Icon(Icons.inventory_2_outlined), label: 'Stok'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Talepler'), NavigationDestination(icon: Icon(Icons.history), label: 'Hareketler')] : const [NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Özet'), NavigationDestination(icon: Icon(Icons.inventory_2_outlined), label: 'Ürünler'), NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Siparişler')]),
+      floatingActionButton: depot && tab == 1 ? FloatingActionButton.extended(onPressed: addProduct, icon: const Icon(Icons.add), label: const Text('Ürün ekle')) : !depot && tab == 1 ? FloatingActionButton.extended(onPressed: () => createOrder(), icon: const Icon(Icons.add_shopping_cart), label: const Text('Talep oluştur')) : null);
   }
-
-  Widget _roleSelection() => Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(Icons.warehouse_rounded, size: 72, color: _green),
-                    const SizedBox(height: 18),
-                    const Text('SEVKTAKİP',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: _ink,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5)),
-                    const SizedBox(height: 8),
-                    const Text('Depo ve mağaza stok yönetimi',
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 28),
-                    _roleCard(
-                      'Mağaza',
-                      'Ürün ve miktar seçerek depoya talep gönder.',
-                      Icons.storefront_rounded,
-                      () => setState(() => _role = 'magaza'),
-                    ),
-                    const SizedBox(height: 14),
-                    _roleCard(
-                      'Depocu',
-                      'Stokları yönet, talepleri kontrol et ve onayla.',
-                      Icons.inventory_2_rounded,
-                      () => setState(() => _role = 'depo'),
-                    ),
-                    const SizedBox(height: 22),
-                    const Text(
-                      'Yerel sürüm: kayıtlar yalnızca bu cihazda saklanır; diğer telefonlarla senkronize olmaz.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black54, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-
-  Widget _roleCard(
-      String title, String subtitle, IconData icon, VoidCallback onTap) =>
-      Card(
-        color: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: Color(0xFFE2E7EF))),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Icon(icon, color: _green, size: 34),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          style: const TextStyle(
-                              color: _ink,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 4),
-                      Text(subtitle,
-                          style: const TextStyle(
-                              color: Colors.black54, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-          ),
-        ),
-      );
-
-  Widget _dashboard() {
-    final pending = _orders.where((order) => order.status == 'Bekliyor').length;
-    final approved =
-        _orders.where((order) => order.status == 'Onaylandı').length;
-    final low = _stock.where((item) => item.quantity <= item.minimum).length;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: _ink,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Text(
-            _isDepot
-                ? 'Depo taleplerini incele ve stok hareketlerini yönet.'
-                : 'İhtiyacın olan ürünleri depodan kolayca talep et.',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-        ),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.45,
-          children: [
-            _metric('Ürün çeşidi', _stock.length.toString(),
-                Icons.inventory_2_outlined),
-            _metric(_isDepot ? 'Bekleyen talep' : 'Siparişlerim',
-                _isDepot ? pending.toString() : _orders.length.toString(),
-                Icons.receipt_long_outlined),
-            _metric('Kritik stok', low.toString(), Icons.warning_amber_rounded,
-                onTap: _showCriticalStock),
-            _metric('Onaylanan', approved.toString(), Icons.check_circle_outline),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Text(_isDepot ? 'Son talepler' : 'Son siparişler',
-            style: const TextStyle(
-                color: _ink, fontSize: 17, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        if (_orders.isEmpty) _empty('Henüz talep yok'),
-        ..._orders.reversed.take(4).map(_orderCard),
-      ],
-    );
+  Widget dashboard() {
+    final pending = orders.where((o) => o['status'] == 'Bekliyor').length;
+    final approved = orders.where((o) => o['status'] == 'Onaylandı').length;
+    final low = products.where((p) => (p['quantity'] as num) <= (p['minimum'] as num)).length;
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(color: ink, borderRadius: BorderRadius.circular(22)), child: Text(depot ? 'Depo taleplerini incele ve stok hareketlerini yönet.' : 'İhtiyacın olan ürünleri ortak depodan talep et.', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800))),
+      const SizedBox(height: 16), GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, childAspectRatio: 1.5, children: [
+        metric('Ürün çeşidi', products.length.toString()), metric(depot ? 'Bekleyen talep' : 'Siparişler', (depot ? pending : orders.length).toString()), metric('Kritik stok', low.toString()), metric('Onaylanan', approved.toString())]),
+      const SizedBox(height: 16), const Text('Son talepler', style: TextStyle(color: ink, fontWeight: FontWeight.w800, fontSize: 17)), ...orders.take(5).map(orderCard)
+    ]);
   }
-
-  Widget _metric(String label, String value, IconData icon,
-          {VoidCallback? onTap}) =>
-      Card(
-        color: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: _green),
-                Text(value,
-                    style: const TextStyle(
-                        color: _ink, fontSize: 25, fontWeight: FontWeight.w900)),
-                Text(label,
-                    style: const TextStyle(color: Colors.black54, fontSize: 12)),
-              ],
-            ),
-          ),
-        ),
-      );
-
-  Future<void> _showCriticalStock() async {
-    final critical = _stock.where((item) => item.quantity <= item.minimum).toList()
-      ..sort((a, b) => (a.quantity - a.minimum).compareTo(b.quantity - b.minimum));
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Kritik stok ürünleri'),
-        content: SizedBox(
-          width: 420,
-          child: critical.isEmpty
-              ? const Text('Kritik seviyede ürün bulunmuyor.')
-              : SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: critical.map((item) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.warning_amber_rounded, color: Colors.deepOrange),
-                      title: Text(item.name),
-                      subtitle: Text('Minimum: ${item.minimum}'),
-                      trailing: Text(
-                        '${item.quantity}${item.unit == 'adet' ? '' : ' ${item.unit}'}',
-                        style: const TextStyle(fontWeight: FontWeight.w800, color: _ink),
-                      ),
-                    )).toList(),
-                  ),
-                ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
-        ],
-      ),
-    );
+  Widget metric(String label, String value) => Card(color: Colors.white, child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Icon(Icons.inventory_2_outlined, color: green), Text(value, style: const TextStyle(color: ink, fontSize: 25, fontWeight: FontWeight.w900)), Text(label, style: const TextStyle(color: Colors.black54, fontSize: 12))])));
+  Widget stockPage() => ListView(padding: const EdgeInsets.all(12), children: [
+    if (products.isEmpty) const Text('Henüz ürün yok'),
+    ...products.map((p) => Card(color: Colors.white, child: ListTile(title: Text(p['name'].toString()), subtitle: Text('Minimum: ' + p['minimum'].toString() + ' ' + p['unit'].toString()), trailing: Text(p['quantity'].toString() + ' ' + p['unit'].toString()), onTap: () => addStock(p))))
+  ]);
+  Widget storePage() => ListView(padding: const EdgeInsets.all(12), children: [
+    if (products.isEmpty) const Text('Depoda henüz ürün yok'),
+    ...products.map((p) => Card(color: Colors.white, child: ListTile(title: Text(p['name'].toString()), subtitle: Text('Stok: ' + p['quantity'].toString() + ' ' + p['unit'].toString()), trailing: const Icon(Icons.add_shopping_cart), onTap: () => createOrder(initialProduct: p['id'].toString()))))
+  ]);
+  Widget storeOrders() => ListView(padding: const EdgeInsets.all(12), children: orders.map(orderCard).toList());
+  Widget requestsPage() => ListView(padding: const EdgeInsets.all(12), children: orders.where((o) => o['status'] == 'Bekliyor').map((o) => orderCard(o, actions: true)).toList());
+  Widget historyPage() => ListView(padding: const EdgeInsets.all(12), children: orders.where((o) => o['status'] != 'Bekliyor').map(orderCard).toList());
+  Widget orderCard(Map<String,dynamic> order, {bool actions = false}) {
+    final lines = List<Map<String,dynamic>>.from((order['order_lines'] as List<dynamic>? ?? []).map((x) => Map<String,dynamic>.from(x as Map)));
+    final id = order['id'].toString();
+    return Card(color: Colors.white, margin: const EdgeInsets.only(bottom: 10), child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Talep #' + id.substring(0, id.length < 6 ? id.length : 6) + ' · ' + order['status'].toString(), style: const TextStyle(color: ink, fontWeight: FontWeight.w800)),
+      ...lines.map((l) { final p = l['products'] is Map ? Map<String,dynamic>.from(l['products'] as Map) : <String,dynamic>{}; return Text('• ' + (p['name']?.toString() ?? 'Ürün') + ' × ' + l['quantity'].toString() + ' ' + (p['unit']?.toString() ?? '')); }),
+      if ((order['note'] as String? ?? '').isNotEmpty) Text('Not: ' + order['note'].toString()),
+      if (actions) Row(children: [Expanded(child: OutlinedButton(onPressed: () => handleOrder(id, false), child: const Text('Reddet'))), const SizedBox(width: 8), Expanded(child: FilledButton(onPressed: () => handleOrder(id, true), child: const Text('Onayla ve stok düş')))])
+    ])));
   }
-
-  Widget _stockPage() => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (_stock.isEmpty) _empty('Henüz ürün eklenmedi'),
-          ..._stock.map((item) => Card(
-                color: Colors.white,
-                child: ListTile(
-                  title: Text(item.name,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(
-                      'Minimum: ${item.minimum} ${item.unit}  ·  ${item.quantity <= item.minimum ? 'Kritik stok' : 'Stok yeterli'}'),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('${item.quantity}',
-                          style: const TextStyle(
-                              color: _ink,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900)),
-                      if (item.unit != 'adet')
-                        Text(item.unit,
-                            style: const TextStyle(
-                                color: Colors.black54, fontSize: 11)),
-                    ],
-                  ),
-                  onTap: () => _addStock(item),
-                ),
-              )),
-          const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('Stok miktarını artırmak için ürüne dokun.',
-                style: TextStyle(color: Colors.black54, fontSize: 12)),
-          ),
-        ],
-      );
-
-  Widget _storeProducts() {
-    final query = _searchController.text.trim().toLowerCase();
-    final filtered = _stock
-        .where((item) => item.name.toLowerCase().contains(query))
-        .toList();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search), hintText: 'Ürün ara'),
-          ),
-        ),
-        Expanded(
-          child: filtered.isEmpty
-              ? _empty('Gösterilecek ürün bulunamadı')
-              : ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: filtered
-                      .map((item) => Card(
-                            color: Colors.white,
-                            child: ListTile(
-                              title: Text(item.name),
-                              subtitle: Text(item.unit == 'adet' ? 'Stok: ${item.quantity}' : 'Stok: ${item.quantity} ${item.unit}'),
-                              trailing: const Icon(Icons.add_shopping_cart),
-                              onTap: () => _createOrder(initialProductId: item.id),
-                            ),
-                          ))
-                      .toList(),
-                ),
-        ),
-      ],
-    );
+  Future<void> addProduct() async {
+    final name = TextEditingController(), qty = TextEditingController(text: '0'), min = TextEditingController(text: '5');
+    String unit = 'koli';
+    final result = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (c, setD) => AlertDialog(title: const Text('Yeni ürün'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextField(controller: name, decoration: const InputDecoration(labelText: 'Ürün adı')), DropdownButtonFormField<String>(value: unit, items: const [DropdownMenuItem(value: 'adet', child: Text('Adet')), DropdownMenuItem(value: 'koli', child: Text('Koli'))], onChanged: (v) => setD(() => unit = v ?? 'koli')), TextField(controller: qty, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Başlangıç stoku')), TextField(controller: min, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minimum stok'))
+    ])), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('İptal')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Kaydet'))])));
+    if (result == true) { final q = int.tryParse(qty.text) ?? -1, m = int.tryParse(min.text) ?? -1; if (name.text.trim().isEmpty || q < 0 || m < 0) { message('Ürün bilgilerini kontrol et.', true); } else { await run(() async { await db.from('products').insert({'name': name.text.trim(), 'unit': unit, 'quantity': q, 'minimum': m}); }); } }
+    name.dispose(); qty.dispose(); min.dispose();
   }
-
-  Widget _storeOrders() => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (_orders.isEmpty) _empty('Henüz sipariş oluşturulmadı'),
-          ..._orders.reversed.map(_orderCard),
-        ],
-      );
-
-  Widget _requestsPage() => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (_orders.where((order) => order.status == 'Bekliyor').isEmpty)
-            _empty('Bekleyen talep yok'),
-          ..._orders
-              .where((order) => order.status == 'Bekliyor')
-              .toList()
-              .reversed
-              .map((order) => _orderCard(order, actions: true)),
-        ],
-      );
-
-  Widget _historyPage() => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (_orders.where((order) => order.status != 'Bekliyor').isEmpty)
-            _empty('Henüz tamamlanmış hareket yok'),
-          ..._orders
-              .where((order) => order.status != 'Bekliyor')
-              .toList()
-              .reversed
-              .map(_orderCard),
-        ],
-      );
-
-  Widget _orderCard(StockOrder order, {bool actions = false}) {
-    return Card(
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Talep #${order.id.substring(0, 6)}',
-                      style: const TextStyle(
-                          color: _ink, fontWeight: FontWeight.w800)),
-                ),
-                _statusChip(order.status),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...order.lines.map((line) {
-              final product = _findProduct(line.productId);
-              final unit = product?.unit ?? 'adet';
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 5, right: 8),
-                      child: Icon(Icons.circle, size: 6, color: _green),
-                    ),
-                    Expanded(child: Text('${product?.name ?? 'Silinmiş ürün'}  ×  ${line.quantity}${unit == 'adet' ? '' : ' $unit'}')),
-                  ],
-                ),
-              );
-            }),
-            if (order.note.isNotEmpty) ...[
-              const SizedBox(height: 5),
-              Text('Not: ${order.note}',
-                  style: const TextStyle(color: Colors.black54)),
-            ],
-            const SizedBox(height: 6),
-            Text(_date(order.createdAt),
-                style: const TextStyle(color: Colors.black45, fontSize: 11)),
-            if (actions) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _reject(order),
-                      child: const Text('Reddet'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () => _approve(order),
-                      child: const Text('Onayla ve stok düş'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
+  Future<void> addStock(Map<String,dynamic> p) async {
+    final c = TextEditingController(text: '1');
+    final amount = await showDialog<int>(context: context, builder: (ctx) => AlertDialog(title: Text(p['name'].toString()), content: TextField(controller: c, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Eklenecek miktar')), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')), FilledButton(onPressed: () { final n = int.tryParse(c.text); if (n != null && n > 0) Navigator.pop(ctx, n); }, child: const Text('Ekle'))]));
+    c.dispose(); if (amount == null) return;
+    await run(() async { await db.from('products').update({'quantity': (p['quantity'] as num).toInt() + amount, 'updated_at': DateTime.now().toUtc().toIso8601String()}).eq('id', p['id']); await db.from('stock_movements').insert({'product_id': p['id'], 'changed_by': db.auth.currentUser!.id, 'delta': amount, 'reason': 'Elle stok ekleme'}); });
   }
-
-  Widget _statusChip(String status) {
-    final color = status == 'Onaylandı'
-        ? _green
-        : status == 'Reddedildi'
-            ? Colors.red.shade700
-            : Colors.orange.shade800;
-    return Chip(
-      label: Text(status,
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-      backgroundColor: color.withValues(alpha: 0.10),
-      side: BorderSide.none,
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Widget _empty(String text) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
-        child: Column(
-          children: [
-            const Icon(Icons.inbox_outlined, size: 38, color: Colors.black38),
-            const SizedBox(height: 8),
-            Text(text, textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.black54)),
-          ],
-        ),
-      );
-
-  StockItem? _findProduct(String id) {
-    for (final item in _stock) {
-      if (item.id == id) return item;
-    }
-    return null;
-  }
-
-  String _date(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}  ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-
-  Future<void> _addProduct() async {
-    final name = TextEditingController();
-    String unit = 'adet';
-    final quantity = TextEditingController(text: '0');
-    final minimum = TextEditingController(text: '5');
-    final formKey = GlobalKey<FormState>();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Yeni ürün'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _textField(name, 'Ürün adı'),
-                StatefulBuilder(
-                  builder: (context, setDialogState) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: InkWell(
-                      onTap: () async {
-                        final selected = await showDialog<String>(
-                          context: context,
-                          builder: (context) => SimpleDialog(
-                            title: const Text('Ürün birimini seç'),
-                            children: ['adet', 'koli'].map((option) => SimpleDialogOption(
-                              onPressed: () => Navigator.pop(context, option),
-                              child: Row(children: [
-                                Icon(unit == option ? Icons.radio_button_checked : Icons.radio_button_off,
-                                    color: unit == option ? _green : Colors.black45),
-                                const SizedBox(width: 10),
-                                Text(option == 'adet' ? 'Adet' : 'Koli'),
-                              ]),
-                            )).toList(),
-                          ),
-                        );
-                        if (selected != null) setDialogState(() => unit = selected);
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(labelText: 'Birim', suffixIcon: Icon(Icons.arrow_drop_down)),
-                        child: Text(unit == 'adet' ? 'Adet' : 'Koli'),
-                      ),
-                    ),
-                  ),
-                ),
-                _textField(quantity, 'Başlangıç stoku', numeric: true),
-                _textField(minimum, 'Minimum stok', numeric: true),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Vazgeç')),
-          FilledButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  Navigator.pop(context, true);
-                }
-              },
-              child: const Text('Kaydet')),
-        ],
-      ),
-    );
-    if (result == true && mounted) {
-      final cleanName = name.text.trim();
-      if (_stock.any((item) => item.name.toLowerCase() == cleanName.toLowerCase())) {
-        _message('Bu ürün zaten kayıtlı.', error: true);
-      } else {
-        setState(() {
-          _stock.add(StockItem(
-            id: DateTime.now().microsecondsSinceEpoch.toString(),
-            name: cleanName,
-            unit: unit,
-            quantity: int.parse(quantity.text.trim()),
-            minimum: int.parse(minimum.text.trim()),
-          ));
-        });
-        await _persist();
-        _message('Ürün kaydedildi.');
-      }
-    }
-    name.dispose();
-    quantity.dispose();
-    minimum.dispose();
-  }
-
-  Widget _textField(TextEditingController controller, String label,
-          {bool numeric = false}) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextFormField(
-          controller: controller,
-          keyboardType: numeric ? TextInputType.number : TextInputType.text,
-          decoration: InputDecoration(labelText: label),
-          validator: (value) {
-            final text = value?.trim() ?? '';
-            if (text.isEmpty) return 'Bu alan zorunludur';
-            if (numeric && (int.tryParse(text) == null || int.parse(text) < 0)) {
-              return 'Sıfır veya pozitif tam sayı girin';
-            }
-            return null;
-          },
-        ),
-      );
-
-  Future<void> _addStock(StockItem item) async {
-    final controller = TextEditingController(text: '1');
-    final amount = await showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${item.name} stoğu'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Eklenecek miktar'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Vazgeç')),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text.trim());
-              if (value == null || value <= 0) return;
-              Navigator.pop(context, value);
-            },
-            child: const Text('Stok ekle'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (amount == null || !mounted) return;
-    setState(() => item.quantity += amount);
-    await _persist();
-    _message('Stok güncellendi.');
-  }
-
-  Future<void> _createOrder({String? initialProductId}) async {
-    if (_stock.isEmpty) {
-      _message('Önce depocu ürün eklemeli.', error: true);
-      return;
-    }
-    final quantities = <String, TextEditingController>{
-      for (final item in _stock)
-        item.id: TextEditingController(
-          text: item.id == initialProductId ? '1' : '0'),
-    };
+  Future<void> createOrder({String? initialProduct}) async {
+    if (products.isEmpty) { message('Önce depocu ürün eklemeli.', true); return; }
+    final controls = {for (final p in products) p['id'].toString(): TextEditingController(text: p['id'].toString() == initialProduct ? '1' : '0')};
     final note = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Depoya talep oluştur'),
-        content: SizedBox(
-          width: 420,
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ..._stock.map((item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.name,
-                                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    'Stokta: ${item.quantity}${item.unit == 'adet' ? '' : ' ${item.unit}'}',
-                                    style: const TextStyle(
-                                        color: Colors.black54, fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            SizedBox(
-                              width: 88,
-                              child: TextFormField(
-                                controller: quantities[item.id],
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                    labelText: 'Talep', isDense: true),
-                                validator: (value) {
-                                  final amount = int.tryParse(value ?? '');
-                                  if (amount == null || amount < 0) {
-                                    return 'Geçersiz';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                  TextField(
-                    controller: note,
-                    decoration: const InputDecoration(labelText: 'Açıklama (isteğe bağlı)'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('İptal')),
-          FilledButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  final hasLine = quantities.values.any(
-                      (controller) => (int.tryParse(controller.text) ?? 0) > 0);
-                  if (hasLine) Navigator.pop(context, true);
-                }
-              },
-              child: const Text('Talebi gönder')),
-        ],
-      ),
-    );
-    if (result == true && mounted) {
-      final lines = quantities.entries
-          .map((entry) => OrderLine(
-              productId: entry.key,
-              quantity: int.parse(entry.value.text.trim())))
-          .where((line) => line.quantity > 0)
-          .toList();
-      setState(() {
-        _orders.add(StockOrder(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          createdAt: DateTime.now(),
-          note: note.text.trim(),
-          lines: lines,
-        ));
-        _tab = 2;
-      });
-      await _persist();
-      _message('Talep depoya eklendi.');
+    final result = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Depoya talep oluştur'), content: SizedBox(width: 420, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      ...products.map((p) => Row(children: [Expanded(child: Text(p['name'].toString() + ' (stok: ' + p['quantity'].toString() + ' ' + p['unit'].toString() + ')')), SizedBox(width: 70, child: TextField(controller: controls[p['id'].toString()], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Adet')))])),
+      TextField(controller: note, decoration: const InputDecoration(labelText: 'Açıklama'))
+    ]))), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')), FilledButton(onPressed: () { if (controls.values.any((c) => (int.tryParse(c.text) ?? 0) > 0) && controls.values.every((c) => (int.tryParse(c.text) ?? -1) >= 0)) Navigator.pop(ctx, true); }, child: const Text('Talebi gönder'))]));
+    if (result == true) {
+      final lines = controls.entries.map((e) => {'product_id': e.key, 'quantity': int.tryParse(e.value.text) ?? 0}).where((e) => (e['quantity'] as int) > 0).toList();
+      await run(() async { final o = await db.from('orders').insert({'created_by': db.auth.currentUser!.id, 'note': note.text.trim()}).select('id').single(); await db.from('order_lines').insert(lines.map((l) => {...l, 'order_id': o['id']}).toList()); if (mounted) setState(() => tab = 2); });
     }
-    for (final controller in quantities.values) {
-      controller.dispose();
-    }
-    note.dispose();
+    for (final c in controls.values) { c.dispose(); } note.dispose();
   }
-
-  Future<void> _approve(StockOrder order) async {
-    if (order.status != 'Bekliyor') return;
-    for (final line in order.lines) {
-      final product = _findProduct(line.productId);
-      if (product == null || product.quantity < line.quantity) {
-        _message(
-          'Stok yetersiz: ${product?.name ?? 'ürün bulunamadı'}. Talep onaylanmadı.',
-          error: true,
-        );
-        return;
-      }
-    }
-    setState(() {
-      for (final line in order.lines) {
-        _findProduct(line.productId)!.quantity -= line.quantity;
-      }
-      order.status = 'Onaylandı';
-    });
-    await _persist();
-    _message('Talep onaylandı, stok düşüldü.');
-  }
-
-  Future<void> _reject(StockOrder order) async {
-    if (order.status != 'Bekliyor') return;
-    setState(() => order.status = 'Reddedildi');
-    await _persist();
-    _message('Talep reddedildi.');
+  Future<void> handleOrder(String id, bool approve) async {
+    await run(() async { await db.rpc('handle_order', params: {'p_order_id': id, 'p_approve': approve}); });
+    if (mounted) message(approve ? 'Talep onaylandı, stok düşüldü.' : 'Talep reddedildi.');
   }
 }
