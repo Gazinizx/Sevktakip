@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => loading = true);
     try {
       final loadedProducts = await _retryNetwork(() =>
-          db.from('products').select().order('name'));
+          db.from('products').select().eq('is_active', true).order('name'));
       final loadedOrders = await _retryNetwork(() =>
           db.from('orders').select('*,order_lines(*,products(name,unit))')
               .order('created_at', ascending: false));
@@ -154,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget metric(String label, String value) => Card(color: Colors.white, child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Icon(Icons.inventory_2_outlined, color: green), Text(value, style: const TextStyle(color: ink, fontSize: 25, fontWeight: FontWeight.w900)), Text(label, style: const TextStyle(color: Colors.black54, fontSize: 12))])));
   Widget stockPage() => ListView(padding: const EdgeInsets.all(12), children: [
     if (products.isEmpty) const Text('Henüz ürün yok'),
-    ...products.map((p) => Card(color: Colors.white, child: ListTile(title: Text(p['name'].toString()), subtitle: Text('Minimum: ' + p['minimum'].toString() + ' ' + p['unit'].toString()), trailing: Text(p['quantity'].toString() + ' ' + p['unit'].toString()), onTap: () => addStock(p))))
+    ...products.map((p) => Card(color: Colors.white, child: ListTile(title: Text(p['name'].toString()), subtitle: Text('Minimum: ' + p['minimum'].toString() + ' ' + p['unit'].toString()), trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text(p['quantity'].toString() + ' ' + p['unit'].toString()), const SizedBox(width: 8), IconButton(tooltip: 'Ürünü sil', icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => deleteProduct(p))]), onTap: () => addStock(p))))
   ]);
   Widget storePage() => ListView(padding: const EdgeInsets.all(12), children: [
     if (products.isEmpty) const Text('Depoda henüz ürün yok'),
@@ -176,12 +176,37 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> addProduct() async {
     final name = TextEditingController(), qty = TextEditingController(text: '0'), min = TextEditingController(text: '5');
     String unit = 'koli';
-    final result = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (c, setD) => AlertDialog(title: const Text('Yeni ürün'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      TextField(controller: name, decoration: const InputDecoration(labelText: 'Ürün adı')), DropdownButtonFormField<String>(initialValue: unit, items: const [DropdownMenuItem(value: 'adet', child: Text('Adet')), DropdownMenuItem(value: 'koli', child: Text('Koli'))], onChanged: (v) => setD(() => unit = v ?? 'koli')), TextField(controller: qty, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Başlangıç stoku')), TextField(controller: min, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minimum stok'))
-    ])), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('İptal')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Kaydet'))])));
+    final result = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (c, setD) => AlertDialog(title: const Text('Yeni ürün'), content: SizedBox(width: 360, child: SingleChildScrollView(child: Padding(padding: const EdgeInsets.only(top: 8), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextField(controller: name, decoration: const InputDecoration(labelText: 'Ürün adı')),
+      const SizedBox(height: 16),
+      DropdownButtonFormField<String>(initialValue: unit, items: const [DropdownMenuItem(value: 'adet', child: Text('Adet')), DropdownMenuItem(value: 'koli', child: Text('Koli'))], onChanged: (v) => setD(() => unit = v ?? 'koli'), decoration: const InputDecoration(labelText: 'Birim')),
+      const SizedBox(height: 16),
+      TextField(controller: qty, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Başlangıç stoku')),
+      const SizedBox(height: 16),
+      TextField(controller: min, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minimum stok'))
+    ])))), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('İptal')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Kaydet'))])));
     if (result == true) { final q = int.tryParse(qty.text) ?? -1, m = int.tryParse(min.text) ?? -1; if (name.text.trim().isEmpty || q < 0 || m < 0) { message('Ürün bilgilerini kontrol et.', true); } else { await run(() async { await db.from('products').insert({'name': name.text.trim(), 'unit': unit, 'quantity': q, 'minimum': m}); }); } }
     name.dispose(); qty.dispose(); min.dispose();
   }
+  Future<void> deleteProduct(Map<String, dynamic> product) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ürünü sil?'),
+        content: Text('"' + product['name'].toString() + '" mağaza ve depo ürün listelerinden kaldırılacak. Eski sipariş ve stok hareketi kayıtları korunacak.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(ctx, true), child: const Text('Ürünü sil')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await run(() async {
+      await db.from('products').update({'is_active': false, 'updated_at': DateTime.now().toUtc().toIso8601String()}).eq('id', product['id']);
+    });
+    if (mounted) message('Ürün listelerden kaldırıldı.');
+  }
+
   Future<void> addStock(Map<String,dynamic> p) async {
     final c = TextEditingController(text: '1');
     final amount = await showDialog<int>(context: context, builder: (ctx) => AlertDialog(title: Text(p['name'].toString()), content: TextField(controller: c, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Eklenecek miktar')), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')), FilledButton(onPressed: () { final n = int.tryParse(c.text); if (n != null && n > 0) Navigator.pop(ctx, n); }, child: const Text('Ekle'))]));
