@@ -216,3 +216,79 @@ jobs:
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8"
           xcrun altool --upload-app --type ios --file build/ios/ipa/*.ipa --apiKey "$APP_STORE_CONNECT_API_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Enable Windows desktop target
+        run: flutter create . --platforms=windows --org com.gazinizx --project-name doyuyosevkiyat
+      - name: Prepare app icon
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $zipPath = "Doyuyo_Sevkiyat_Android_iOS_Icons.zip"
+          if (!(Test-Path $zipPath)) { throw "Doyuyo icon ZIP is missing from repository root." }
+          Expand-Archive -Path $zipPath -DestinationPath "assets/icons" -Force
+          $sourceIcon = "assets/icons/doyuyo-sevkiyat-1024x1024.png"
+          if (!(Test-Path $sourceIcon)) { throw "Expected 1024x1024 PNG not found inside icon ZIP." }
+          Copy-Item $sourceIcon "assets/doyuyo-app-icon.png" -Force
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build Windows release
+        run: flutter build windows --release
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+      - name: Package one Windows installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $releaseDir = "build/windows/x64/runner/Release"
+          if (!(Test-Path "$releaseDir/doyuyo_sevkiyat.exe")) { throw "Windows release executable was not produced." }
+          $iss = @'
+          #define MyAppName "Doyuyo Sevkiyat"
+          #define MyAppVersion "1.0.0"
+          #define MyAppPublisher "Doyuyo"
+          #define MyAppExeName "doyuyo_sevkiyat.exe"
+          [Setup]
+          AppId={{D7A6B0CB-1D43-4A8A-9F4C-3F49A12D2A11}
+          AppName={#MyAppName}
+          AppVersion={#MyAppVersion}
+          AppPublisher={#MyAppPublisher}
+          DefaultDirName={autopf}\Doyuyo Sevkiyat
+          DefaultGroupName=Doyuyo Sevkiyat
+          OutputDir=build\windows\installer
+          OutputBaseFilename=Doyuyo-Sevkiyat-Windows-Setup
+          ArchitecturesInstallIn64BitMode=x64
+          Compression=lzma
+          SolidCompression=yes
+          WizardStyle=modern
+          UninstallDisplayIcon={app}\{#MyAppExeName}
+          [Tasks]
+          Name: "desktopicon"; Description: "Masaüstüne kısayol oluştur"; GroupDescription: "Ek seçenekler:"
+          [Files]
+          Source: "$releaseDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          [Icons]
+          Name: "{group}\Doyuyo Sevkiyat"; Filename: "{app}\{#MyAppExeName}"
+          Name: "{autodesktop}\Doyuyo Sevkiyat"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+          [Run]
+          Filename: "{app}\{#MyAppExeName}"; Description: "Doyuyo Sevkiyat uygulamasını başlat"; Flags: postinstall nowait skipifsilent
+          '@
+          New-Item -ItemType Directory -Force "build/windows/installer" | Out-Null
+          Set-Content -Path "build/windows/Doyuyo-Sevkiyat.iss" -Value $iss -Encoding ASCII
+          $iscc = Get-ChildItem "C:\Program Files (x86)\Inno Setup" -Filter "ISCC.exe" -Recurse | Select-Object -First 1
+          if (!$iscc) { throw "Inno Setup compiler (ISCC.exe) not found." }
+          & $iscc.FullName "build/windows/Doyuyo-Sevkiyat.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }
+          if (!(Test-Path "build/windows/installer/Doyuyo-Sevkiyat-Windows-Setup.exe")) { throw "Installer output missing." }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: doyuyo-sevkiyat-windows-installer
+          path: build/windows/installer/Doyuyo-Sevkiyat-Windows-Setup.exe
+          if-no-files-found: error
