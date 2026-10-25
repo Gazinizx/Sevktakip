@@ -250,12 +250,12 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $releaseDir = "build/windows/x64/runner/Release"
-          if (!(Test-Path "$releaseDir/doyuyo_sevkiyat.exe")) { throw "Windows release executable was not produced." }
+          if (!(Test-Path "$releaseDir/doyuyosevkiyat.exe")) { throw "Windows release executable was not produced." }
           $iss = @'
           #define MyAppName "Doyuyo Sevkiyat"
           #define MyAppVersion "1.0.0"
           #define MyAppPublisher "Doyuyo"
-          #define MyAppExeName "doyuyo_sevkiyat.exe"
+          #define MyAppExeName "doyuyosevkiyat.exe"
           [Setup]
           AppId={{D7A6B0CB-1D43-4A8A-9F4C-3F49A12D2A11}
           AppName={#MyAppName}
