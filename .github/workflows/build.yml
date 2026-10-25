@@ -7,6 +7,7 @@ concurrency:
   group: doyuyo-sevkiyat-windows
   cancel-in-progress: false
 
+jobs:
   windows:
     runs-on: windows-latest
     steps:
