@@ -28,9 +28,12 @@ jobs:
           $sourceIcon = "assets/icons/doyuyo-sevkiyat-1024x1024.png"
           if (!(Test-Path $sourceIcon)) { throw "Expected 1024x1024 PNG not found inside icon ZIP." }
           Copy-Item $sourceIcon "assets/doyuyo-app-icon.png" -Force
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze Dart code
+        run: flutter analyze
+      - name: Run tests
+        run: flutter test
       - name: Build Windows release
         run: flutter build windows --release
       - name: Install Inno Setup
@@ -41,7 +44,9 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $releaseDir = "build/windows/x64/runner/Release"
-          if (!(Test-Path "$releaseDir/doyuyosevkiyat.exe")) { throw "Windows release executable was not produced." }
+          $exePath = Join-Path $releaseDir "doyuyosevkiyat.exe"
+          if (!(Test-Path $exePath -PathType Leaf)) { throw "Windows release executable was not produced at $exePath." }
+
           $iss = @'
           #define MyAppName "Doyuyo Sevkiyat"
           #define MyAppVersion "1.0.0"
@@ -71,13 +76,35 @@ jobs:
           [Run]
           Filename: "{app}\{#MyAppExeName}"; Description: "Doyuyo Sevkiyat uygulamasını başlat"; Flags: postinstall nowait skipifsilent
           '@
-          New-Item -ItemType Directory -Force "build/windows/installer" | Out-Null
+
+          $installerDir = "build/windows/installer"
+          New-Item -ItemType Directory -Force $installerDir | Out-Null
           Set-Content -Path "build/windows/Doyuyo-Sevkiyat.iss" -Value $iss -Encoding ASCII
-          $iscc = Get-ChildItem "C:\Program Files (x86)\Inno Setup" -Filter "ISCC.exe" -Recurse | Select-Object -First 1
-          if (!$iscc) { throw "Inno Setup compiler (ISCC.exe) not found." }
-          & $iscc.FullName "build/windows/Doyuyo-Sevkiyat.iss"
+
+          $isccPath = (Get-Command "ISCC.exe" -ErrorAction SilentlyContinue).Source
+          if (!$isccPath) {
+            $candidates = @(
+              (Join-Path "${env:ProgramFiles(x86)}" "Inno Setup 6/ISCC.exe"),
+              (Join-Path $env:ProgramFiles "Inno Setup 6/ISCC.exe"),
+              (Join-Path "${env:ProgramFiles(x86)}" "Inno Setup/ISCC.exe")
+            ) | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) }
+            if ($candidates.Count -gt 0) { $isccPath = $candidates[0] }
+          }
+          if (!$isccPath) {
+            $searchRoots = @("${env:ProgramFiles(x86)}", $env:ProgramFiles, "C:\ProgramData\chocolatey\lib")
+            foreach ($root in ($searchRoots | Where-Object { $_ -and (Test-Path $_ -PathType Container) })) {
+              $found = Get-ChildItem -Path $root -Filter "ISCC.exe" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($found) { $isccPath = $found.FullName; break }
+            }
+          }
+          if (!$isccPath) { throw "Inno Setup compiler ISCC.exe was not found after installation. Checked PATH and standard install locations." }
+
+          & $isccPath "build/windows/Doyuyo-Sevkiyat.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }
-          if (!(Test-Path "build/windows/installer/Doyuyo-Sevkiyat-Windows-Setup.exe")) { throw "Installer output missing." }
+
+          $installerPath = Join-Path $installerDir "Doyuyo-Sevkiyat-Windows-Setup.exe"
+          if (!(Test-Path $installerPath -PathType Leaf)) { throw "Installer output missing: $installerPath" }
+          if ((Get-Item $installerPath).Length -lt 1MB) { throw "Installer output is unexpectedly small; refusing to publish a likely invalid installer." }
       - uses: actions/upload-artifact@v4
         with:
           name: doyuyo-sevkiyat-windows-installer
